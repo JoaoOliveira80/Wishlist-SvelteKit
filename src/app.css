@@ -1,0 +1,207 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700;800&display=swap");
+
+:root {
+  color-scheme: dark;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+
+  /* Modern Steam/Nuuvem inspired palette */
+  --bg: #0f1419; /* Ultra dark base */
+  --bg-dark: #0a0e13; /* Darker sections */
+  --bg-lighter: #151b23; /* Lighter for contrast */
+
+  --surface: #1a2332; /* Primary surface */
+  --surface-strong: #233d52; /* Stronger surface */
+  --surface-hover: #2a4a62; /* Hover state */
+  --surface-active: #3a5a72; /* Active state */
+
+  --rgb-surface: 26, 35, 50;
+  --rgb-surface-strong: 35, 61, 82;
+
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-accent: rgba(102, 192, 244, 0.3);
+
+  --text: #f0f4f8;
+  --text-muted: #8b95a5;
+  --text-soft: #b5c4d4;
+  --text-strong: #ffffff;
+
+  --accent: #4ba3d0; /* Modern steam blue */
+  --accent-bright: #66c0f4; /* Brighter blue for accents */
+  --accent-strong: #3682a8;
+  --accent-hover: #5bb3e0;
+
+  --accent-secondary: #a371d7; /* Modern purple */
+  --accent-secondary-hover: #b580e0;
+
+  --success: #8fb946; /* Modern green */
+  --success-hover: #9ecf52;
+  --success-dark: #7da33f;
+
+  --warning: #e8a534; /* Modern orange */
+  --danger: #e74c3c;
+
+  /* Genres */
+  --genre-bg: rgba(102, 192, 244, 0.1);
+  --genre-text: #66c0f4;
+
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.6);
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-smooth: 400ms;
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  background: var(--bg);
+  background-image: linear-gradient(
+    135deg,
+    var(--bg-dark) 0%,
+    var(--bg) 50%,
+    var(--bg-lighter) 100%
+  );
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(0, 212, 255, 0.25);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes scale-up {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 16px rgba(0, 212, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(0, 212, 255, 0.5);
+  }
+}
+@keyframes shimmer {
+  0% {
+    background-position: -800px 0;
+  }
+  100% {
+    background-position: 800px 0;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes stagger-children {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus Visible Styles */
+:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+input:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: -1px;
+}
