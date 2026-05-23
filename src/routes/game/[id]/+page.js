@@ -1,10 +1,10 @@
-import { getGameDetails, getGameScreenshots } from '$lib/api.js';
+import { getGameDetails, getGameScreenshots } from "$lib/api.js";
 
 export async function load({ params, fetch }) {
   try {
     const [game, screenshots] = await Promise.all([
-      getGameDetails(params.id),
-      getGameScreenshots(params.id),
+      getGameDetails(params.id, fetch),
+      getGameScreenshots(params.id, fetch),
     ]);
 
     return {
@@ -12,11 +12,11 @@ export async function load({ params, fetch }) {
       screenshots,
     };
   } catch (error) {
-    console.error('Failed to load game details:', error);
+    console.error("Failed to load game details:", error);
     return {
       game: null,
       screenshots: [],
-      error: 'Falha ao carregar detalhes do jogo.',
+      error: "Falha ao carregar detalhes do jogo.",
     };
   }
 }

@@ -32,8 +32,8 @@
     totalCount = 0,
     currentPage = 1,
     pageSize = 20,
-    onPageChange = () => {},
-    onRetry = () => {},
+    onPageChange = (/** @type {number} */ _p) => {},
+    onRetry = (/** @type {MouseEvent} */ _e) => {},
   } = $props();
 
   let selectedGenres = $state(/** @type {string[]} */ ([]));
@@ -193,9 +193,9 @@
         Busca precisa
       </label>
 
-      <div class="filter-info">
+      <!-- <div class="filter-info">
         {totalCount} jogos found
-      </div>
+      </div> -->
     </div>
 
     {#if hasActiveFilters}
@@ -237,8 +237,8 @@
     {:else if error}
       <div class="error-state" in:fade={{ duration: 300 }}>
         <span class="error-icon">⚠️</span>
-        <p>{error}</p>
-        <button class="retry-btn" onclick={onRetry}>
+        <p class="error-text">{error}</p>
+        <button class="retry-btn" onclick={(e) => onRetry(e)}>
           Tentar novamente
         </button>
       </div>
@@ -247,7 +247,7 @@
         <span class="empty-icon">
           <Gamepad2 size={40} />
         </span>
-        <p>{selectedGenres.length > 0 ? 'Nenhum jogo encontrado para esses filtros.' : 'Nenhum jogo para exibir.'}</p>
+        <p class="empty-text">{selectedGenres.length > 0 ? 'Nenhum jogo encontrado para esses filtros.' : 'Nenhum jogo para exibir.'}</p>
       </div>
     {:else}
       <div class="grid">
@@ -358,13 +358,6 @@
     color: var(--text-muted);
   }
 
-  .filter-info {
-    margin-left: auto;
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    font-weight: 600;
-  }
-
   .precision-control {
     display: inline-flex;
     align-items: center;
@@ -437,7 +430,6 @@
     color: #ff6b6b;
   }
 
-  .loading-state,
   .error-state,
   .empty-state {
     display: flex;
@@ -448,20 +440,6 @@
     gap: 12px;
   }
 
-  .loading-state {
-    animation: fade-in var(--duration-normal) var(--ease-out);
-  }
-
-  .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid rgba(75, 163, 208, 0.2);
-    border-top-color: var(--accent-bright);
-    border-radius: 999px;
-    animation: spin-slow 1s linear infinite;
-  }
-
-  .loading-state p,
   .error-state p,
   .empty-state p {
     color: var(--text-muted);
@@ -516,18 +494,13 @@
 
   @media (max-width: 900px) {
     .grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1px));
       gap: 14px;
     }
 
     .filters-bar {
       flex-direction: column;
       align-items: stretch;
-    }
-
-    .filter-info {
-      margin-left: 0;
-      text-align: center;
     }
 
     .precision-control {

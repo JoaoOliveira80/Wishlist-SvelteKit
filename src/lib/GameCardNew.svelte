@@ -1,12 +1,18 @@
 <script lang="ts">
   import { Info, Sparkles } from 'lucide-svelte';
   import { wishlist, toggleWishlist, isInWishlist } from './wishlist.js';
+  import { onDestroy } from 'svelte';
   import { getGenreColorVar } from './colors.js';
   import { goto } from '$app/navigation';
   import OptimizedImage from './OptimizedImage.svelte';
 
   let { game, onDetails = () => {} } = $props();
-  let inList = $derived(isInWishlist($wishlist, game));
+  // track whether this game is in the wishlist by subscribing to the store
+  let inList = $state(false);
+  const unsubscribe = wishlist.subscribe((list) => {
+    inList = isInWishlist(list, game);
+  });
+  onDestroy(unsubscribe);
 
   function formatGenres(genres: any[]) {
     return genres?.slice(0, 2).map(g => g.name) || [];
@@ -17,7 +23,7 @@
   }
 </script>
 
-<article class="card" class:in-list={inList}>
+  <article class="card" class:in-list={inList}>
   <!-- Cover -->
   <div class="cover" onclick={handleCardClick} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick(); }} role="button" tabindex="0">
     {#if game.background_image}
@@ -108,19 +114,9 @@
     background: linear-gradient(135deg, var(--surface-strong), var(--surface));
   }
 
-  .cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform var(--duration-smooth) var(--ease-out),
-                filter var(--duration-smooth) var(--ease-out);
-    filter: brightness(0.95) saturate(1.05);
-  }
-
-  .card:hover .cover img {
-    transform: scale(1.08);
-    filter: brightness(1.1) saturate(1.15);
-  }
+  /* The image is now rendered via OptimizedImage component, so the direct
+   * .cover img selector is no longer needed. The component handles sizing
+   * and hover effects internally. */
 
   .cover-overlay {
     position: absolute;

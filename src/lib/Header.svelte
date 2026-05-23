@@ -1,7 +1,31 @@
 <script lang="ts">
   import { Search, Heart, Compass } from 'lucide-svelte';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
+  import { wishlist } from './wishlist.js';
   let { activeTab = 'explore', onTabChange = () => {}, wishlistCount = 0, query = $bindable(''), onSearch = () => {} } = $props();
   let searchFocused = $state(false);
+
+  let displayedWishlistCount = $state(0);
+
+  $effect(() => {
+    displayedWishlistCount = wishlistCount || $wishlist.length;
+  });
+
+  function handleTabChange(tab: string) {
+    // Update URL search param `tab` so the page reacts to it
+    const params = new URLSearchParams($page.url.searchParams);
+    if (tab && tab !== 'explore') {
+      params.set('tab', tab);
+    } else {
+      params.delete('tab');
+    }
+
+    const queryString = params.toString();
+    goto(queryString ? `?${queryString}` : '/', { replaceState: true, keepFocus: true });
+    // call optional external handler for compatibility
+    try { onTabChange(tab); } catch (e) {}
+  }
 
   function handleSearchInput(e: Event & { currentTarget: EventTarget & HTMLInputElement }) {
     const target = e.target as HTMLInputElement;
@@ -33,15 +57,15 @@
     </div>
 
     <nav class="nav">
-      <button class="nav-btn" class:active={activeTab === 'explore'} aria-current={activeTab === 'explore' ? 'page' : undefined} onclick={() => onTabChange('explore')}>
+      <button class="nav-btn" class:active={activeTab === 'explore'} aria-current={activeTab === 'explore' ? 'page' : undefined} onclick={() => handleTabChange('explore')}>
         <Compass class="nav-icon" size={18} />
         <span class="nav-label">Explorar</span>
       </button>
-      <button class="nav-btn" class:active={activeTab === 'wishlist'} aria-current={activeTab === 'wishlist' ? 'page' : undefined} onclick={() => onTabChange('wishlist')}>
+      <button class="nav-btn" class:active={activeTab === 'wishlist'} aria-current={activeTab === 'wishlist' ? 'page' : undefined} onclick={() => handleTabChange('wishlist')}>
         <Heart class="nav-icon" size={18} />
         <span class="nav-label">Wishlist</span>
-        {#if wishlistCount > 0}
-          <span class="badge">{wishlistCount}</span>
+        {#if displayedWishlistCount > 0}
+          <span class="badge">{displayedWishlistCount}</span>
         {/if}
       </button>
     </nav>
@@ -235,19 +259,6 @@
     background: rgba(255, 255, 255, 0.3);
   }
 
-  .theme-toggle {
-    border: 1px solid var(--border-strong);
-    background: transparent;
-    color: var(--text-muted);
-    transition: all var(--duration-fast) var(--ease-out);
-  }
-
-  .theme-toggle:hover {
-    border-color: var(--border-accent);
-    color: var(--accent-bright);
-    background: var(--surface);
-    transform: translateY(-1px);
-  }
 
   @keyframes scale-in {
     from { transform: scale(0); }

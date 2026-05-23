@@ -116,7 +116,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-{#if open && game}
+  {#if open && game}
   <div class="modal-backdrop" role="presentation" onclick={onClose}></div>
 
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">

@@ -51,6 +51,13 @@
     if (urlTab === 'wishlist') tab = 'wishlist';
   });
 
+  // react to changes in the URL (e.g. when Header updates ?tab=... via goto)
+  $effect(() => {
+    const params = $page.url.searchParams;
+    const urlTab = params.get('tab') || 'explore';
+    tab = urlTab === 'wishlist' ? 'wishlist' : 'explore';
+  });
+
   async function loadExploreGames() {
     loading = true;
     error = '';

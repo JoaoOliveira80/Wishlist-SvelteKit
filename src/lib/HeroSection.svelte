@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Telescope, Package, Heart, Star } from 'lucide-svelte';
-  import StatCard from './StatCard.svelte';
+  // import StatCard from './StatCard.svelte';
 
   type FeaturedGame = {
     background_image?: string;
@@ -39,7 +39,7 @@
         <span class="eyebrow-dot">●</span>
         Powered by RAWG Database
       </div>
-      <h2 class="hero-title">Sua wishlist<br/>de games</h2>
+      <h2 class="hero-title">Sua wishlist de games</h2>
       <p class="hero-desc">Explore milhares de títulos, descubra lançamentos e salve os seus favoritos em uma biblioteca pessoal.</p>
       <div class="hero-actions">
         <button class="btn-primary" onclick={onExplore}>
@@ -49,7 +49,7 @@
       </div>
     </div>
 
-    <div class="hero-right">
+    <!-- <div class="hero-right">
       <div class="stats-grid">
         <StatCard
           label="Catálogo"
@@ -73,7 +73,7 @@
           animate={true}
         />
       </div>
-    </div>
+    </div> -->
   </div>
 </section>
 
@@ -235,19 +235,9 @@
     justify-content: center;
   }
 
-  .hero-right {
-    flex: 0.8;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 240px;
-  }
-
-  .stats-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
+  /* The right side and stats grid are currently not rendered (commented out in markup).
+   * Removing these unused selectors eliminates Vite warnings and reduces CSS size.
+   */
 
   @media (max-width: 900px) {
     .hero-inner {
@@ -259,17 +249,7 @@
     .hero-left {
       max-width: 100%;
     }
-
-    .hero-right {
-      width: 100%;
-      min-width: unset;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-    }
+    /* .hero-right and .stats-grid are not used; removed their styles */
   }
 
   @media (max-width: 768px) {
@@ -291,11 +271,7 @@
       font-size: 1rem;
       max-width: 100%;
     }
-
-    .stats-grid {
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
+    /* .stats-grid removed */
   }
 
   @media (max-width: 640px) {
@@ -316,10 +292,7 @@
       padding: 12px 24px;
       font-size: 0.9rem;
     }
-
-    .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
+    /* .stats-grid removed */
   }
 
   @media (max-width: 480px) {
@@ -330,10 +303,6 @@
     .hero-inner {
       padding: 20px 16px;
     }
-
-    .stats-grid {
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
+    /* .stats-grid removed */
   }
 </style>

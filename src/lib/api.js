@@ -120,10 +120,10 @@ function normalizeGamesResponse(data) {
  * @param {string} query
  * @returns {Promise<Game[]>}
  */
-export async function searchGames(query) {
+export async function searchGames(query, fetcher = fetch) {
   if (!query || query.length < 2) return [];
 
-  const response = await fetch(
+  const response = await fetcher(
     buildUrl("/games", {
       search: query,
       search_precise: "false",
@@ -137,8 +137,8 @@ export async function searchGames(query) {
   return normalizeGamesResponse(data);
 }
 
-export async function getPopularGames() {
-  const response = await fetch(
+export async function getPopularGames(fetcher = fetch) {
+  const response = await fetcher(
     buildUrl("/games", {
       ordering: "-rating",
       page_size: 12,
@@ -156,12 +156,12 @@ export async function getPopularGames() {
  * @param {number | string} gameId
  * @returns {Promise<Game>}
  */
-export async function getGameDetails(gameId) {
+export async function getGameDetails(gameId, fetcher = fetch) {
   if (detailsCache.has(gameId)) {
     return detailsCache.get(gameId);
   }
 
-  const response = await fetch(buildUrl(`/games/${gameId}`));
+  const response = await fetcher(buildUrl(`/games/${gameId}`));
   if (!response.ok) {
     throw new Error(`Failed to fetch game details: ${response.status}`);
   }
@@ -176,8 +176,8 @@ export async function getGameDetails(gameId) {
  * @param {number | string} gameId
  * @returns {Promise<Screenshot[]>}
  */
-export async function getGameScreenshots(gameId) {
-  const response = await fetch(
+export async function getGameScreenshots(gameId, fetcher = fetch) {
+  const response = await fetcher(
     buildUrl(`/games/${gameId}/screenshots`, { page_size: 5 }),
   );
   if (!response.ok) {
@@ -192,8 +192,8 @@ export async function getGameScreenshots(gameId) {
  * Get all genres
  * @returns {Promise<Genre[]>}
  */
-export async function getAllGenres() {
-  const response = await fetch(buildUrl("/genres", { page_size: 50 }));
+export async function getAllGenres(fetcher = fetch) {
+  const response = await fetcher(buildUrl("/genres", { page_size: 50 }));
   if (!response.ok) {
     return [];
   }
@@ -206,8 +206,8 @@ export async function getAllGenres() {
  * Get all platforms
  * @returns {Promise<Platform[]>}
  */
-export async function getAllPlatforms() {
-  const response = await fetch(buildUrl("/platforms", { page_size: 50 }));
+export async function getAllPlatforms(fetcher = fetch) {
+  const response = await fetcher(buildUrl("/platforms", { page_size: 50 }));
   if (!response.ok) {
     return [];
   }
@@ -220,8 +220,8 @@ export async function getAllPlatforms() {
  * Get all parent platforms
  * @returns {Promise<Platform[]>}
  */
-export async function getAllParentPlatforms() {
-  const response = await fetch(
+export async function getAllParentPlatforms(fetcher = fetch) {
+  const response = await fetcher(
     buildUrl("/platforms/lists/parents", { page_size: 20 }),
   );
   if (!response.ok) {
@@ -247,8 +247,8 @@ export async function getAllParentPlatforms() {
  * Get all tags
  * @returns {Promise<Tag[]>}
  */
-export async function getAllTags() {
-  const response = await fetch(buildUrl("/tags", { page_size: 50 }));
+export async function getAllTags(fetcher = fetch) {
+  const response = await fetcher(buildUrl("/tags", { page_size: 50 }));
   if (!response.ok) {
     return [];
   }
@@ -277,7 +277,7 @@ export async function getAllTags() {
  * }} filters
  * @returns {Promise<{results: Game[], count: number, next: string | null, previous: string | null}>}
  */
-export async function getGamesByFilters(filters = {}) {
+export async function getGamesByFilters(filters = {}, fetcher = fetch) {
   /** @type {Record<string, string | number | boolean | Array<string | number> | undefined>} */
   const params = {
     page_size: filters.page_size || 20,
@@ -327,7 +327,7 @@ export async function getGamesByFilters(filters = {}) {
     params.updated = filters.updated;
   }
 
-  const response = await fetch(buildUrl("/games", normalizeParams(params)));
+  const response = await fetcher(buildUrl("/games", normalizeParams(params)));
   if (!response.ok) {
     throw new Error(`RAWG request failed with status ${response.status}`);
   }

@@ -83,9 +83,9 @@
   {/if}
 </svelte:head>
 
-{#if data.error || !game}
+  {#if data.error || !game}
   <div class="error-container">
-    <div class="error-state">
+      <div class="error-state">
       <span class="error-icon">⚠️</span>
       <h2>Jogo não encontrado</h2>
       <p>{data.error || 'Este jogo não existe ou ocorreu um erro ao carregar.'}</p>
@@ -111,7 +111,7 @@
 
       <div class="game-header">
         {#if game.background_image}
-          <OptimizedImage src={game.background_image} alt={game.name} className="game-cover" aspectRatio="2/3" />
+          <OptimizedImage src={game.background_image} alt={game.name} aspectRatio="2/3" />
         {:else}
           <div class="game-cover-fallback">{game.name.slice(0, 2).toUpperCase()}</div>
         {/if}
@@ -264,7 +264,7 @@
         {:else if activeTab === 'gallery' && screenshots.length > 0}
           <div class="screenshots-grid">
             {#each screenshots as screenshot (screenshot.id)}
-              <OptimizedImage src={screenshot.image} alt="Screenshot" className="screenshot" loading="lazy" />
+               <OptimizedImage src={screenshot.image} alt="Screenshot" loading="lazy" />
             {/each}
           </div>
         {/if}
@@ -395,13 +395,10 @@
     gap: 24px;
   }
 
-  .game-cover {
-    width: 200px;
-    height: 280px;
-    border-radius: var(--radius-lg);
-    object-fit: cover;
-    border: 1px solid var(--border);
-  }
+  /* The .game-cover class was previously used to size the OptimizedImage wrapper.
+   * Since OptimizedImage now handles sizing via the aspectRatio prop and the
+   * wrapper inherits its container's dimensions, the explicit .game-cover rules are
+   * no longer needed and have been removed to silence Vite warnings. */
 
   .game-cover-fallback {
     width: 200px;
@@ -596,19 +593,9 @@
     gap: 12px;
   }
 
-  .screenshot {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    object-fit: cover;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: transform var(--duration-fast) var(--ease-out);
-  }
-
-  .screenshot:hover {
-    transform: scale(1.03);
-  }
+  /* The screenshot images are now rendered via OptimizedImage, which already
+   * provides appropriate sizing and aspect‑ratio handling. The custom .screenshot
+   * rules are therefore unnecessary and have been removed. */
 
   .game-footer {
     display: grid;
@@ -674,7 +661,6 @@
       grid-template-columns: 1fr;
     }
 
-    .game-cover,
     .game-cover-fallback {
       width: 100%;
       height: 240px;
