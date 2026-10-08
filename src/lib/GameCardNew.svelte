@@ -92,7 +92,7 @@
   let rankLabel = $derived(rank != null ? `#${String(rank).padStart(3, '0')}` : null);
   let year = $derived(game.released ? String(game.released).slice(0, 4) : null);
 
-  // Cor de acento derivada do gênero principal — dá identidade única a cada card
+  // Cor de acento derivada do genero principal: identidade unica por card
   let accent = $derived(getGenreColor(game.genres?.[0]?.name));
   let accentVar = $derived(getGenreColorVar(game.genres?.[0]?.name));
 
@@ -156,7 +156,7 @@
       <span class="foot-actions">
         <button class="btn-wishlist" class:added={inList} onclick={handleWish}
           aria-label={inList ? 'Remover da wishlist' : 'Adicionar à wishlist'}
-          title={inList ? 'Na wishlist — clique para remover' : 'Adicionar à wishlist'}>
+          title={inList ? 'Na wishlist - clique para remover' : 'Adicionar a wishlist'}>
           <span class="heart-icon" aria-hidden="true">{inList ? '♥' : '♡'}</span>
           <span class="tip">{inList ? 'NA LISTA!' : '+ WISHLIST'}</span>
         </button>

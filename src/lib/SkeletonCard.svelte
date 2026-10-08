@@ -165,4 +165,13 @@
       grid-template-columns: 1fr;
     }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-cover,
+    .skeleton-title,
+    .skeleton-badge,
+    .skeleton-btn {
+      animation: none;
+    }
+  }
 </style>

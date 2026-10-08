@@ -146,7 +146,6 @@
 <div class="game-grid-container">
   {#if showFilters}
     <div class="arcade-toolbar" aria-label="Controles da lista">
-      <span class="kicker kicker-filters">FILTROS {#if activeFilterCount}<em>// {activeFilterCount} ON</em>{/if}</span>
       <div class="filters-bar">
       <GenreFilter
         genres={allGenres}
@@ -182,7 +181,6 @@
         />
       {/if}
 
-      <span class="kicker kicker-sort">ORDENAR</span>
       <div class="sort-control">
         <label for="sort-select">Ordenar por:</label>
         <div class="select-wrapper">
@@ -203,12 +201,11 @@
         Busca precisa
       </label>
       </div>
-      <span class="kicker kicker-page">PÁGINA // {currentPage}/{totalPages}</span>
+      <span class="page-note">Página {currentPage} de {totalPages}</span>
     </div>
 
     <div class="count-strip" aria-live="polite">
       <span class="count-chip"><strong>{shownCount}</strong> nesta página</span>
-      <span class="count-dot" aria-hidden="true"></span>
       <span class="count-chip ghost"><strong>{totalCount}</strong> no catálogo</span>
     </div>
 
@@ -246,7 +243,7 @@
   <div class="status-container" aria-live="polite">
     {#if loading}
       <div class="arcade-loading" in:fade={{ duration: 200 }}>
-        <span class="kicker kicker-load">CARREGANDO FICHAS…</span>
+        <p class="loading-note">Carregando jogos...</p>
         <SkeletonCard count={12} />
       </div>
     {:else if error}
@@ -259,7 +256,7 @@
       </div>
     {:else if games.length === 0}
       <div class="empty-state empty-arcade" in:fade={{ duration: 300 }}>
-        <span class="empty-kicker">SEM FICHAS // INSERT COIN</span>
+        <span class="empty-note">Sem jogos por aqui</span>
         <span class="empty-icon">
           <Gamepad2 size={40} />
         </span>
@@ -325,33 +322,19 @@
       #0e1422;
   }
 
-  .kicker {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    color: var(--lime);
+  .page-note {
+    margin-left: auto;
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    font-weight: 600;
     white-space: nowrap;
   }
 
-  .kicker em {
-    font-style: normal;
-    color: var(--violet);
-  }
-
-  .kicker-sort {
-    color: var(--violet);
-    margin-left: 4px;
-  }
-
-  .kicker-page {
-    margin-left: auto;
+  .loading-note {
+    margin: 0 0 10px;
     color: var(--text-soft);
-  }
-
-  .kicker-load {
-    display: inline-flex;
-    margin-bottom: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
   }
 
   .filters-bar {
@@ -395,14 +378,6 @@
 
   .count-chip.ghost strong {
     color: var(--violet);
-  }
-
-  .count-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--violet);
-    box-shadow: 0 0 10px rgba(139, 92, 246, 0.85);
   }
 
   .sort-control {
@@ -555,12 +530,10 @@
     padding: 34px 24px;
   }
 
-  .empty-kicker {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
+  .empty-note {
+    font-size: 0.9rem;
     font-weight: 700;
-    letter-spacing: 0.16em;
-    color: var(--lime);
+    color: var(--text-soft);
   }
 
   .empty-title {
@@ -632,7 +605,7 @@
       align-items: stretch;
     }
 
-    .kicker-page {
+    .page-note {
       margin-left: 0;
     }
 

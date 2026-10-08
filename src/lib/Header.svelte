@@ -36,7 +36,7 @@
 
 <header class="header">
   <div class="header-inner">
-    <button class="brand" onclick={() => handleTabChange('explore')} aria-label="GameWish — explorar">
+    <button class="brand" onclick={() => handleTabChange('explore')} aria-label="GameWish - explorar">
       <span class="brand-mark" aria-hidden="true"><img src="/logo.svg" alt="" width="28" height="28" /></span>
       <span class="brand-text"><span class="brand-name">GAME<em>WISH</em></span><span class="brand-sub">sua coleção viva</span></span>
     </button>

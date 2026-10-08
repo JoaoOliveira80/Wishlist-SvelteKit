@@ -27,12 +27,13 @@
     if (meta >= 50) return 'meta-mid';
     return 'meta-low';
   }
+  // Fallback visivel usa hifen simples, nunca em-dash
 
   /**
    * @param {number | undefined | null} meta
    */
   function metaRank(meta) {
-    if (meta == null) return '—';
+    if (meta == null) return '-';
     if (meta >= 85) return 'S';
     if (meta >= 75) return 'A';
     if (meta >= 60) return 'B';
@@ -43,7 +44,7 @@
    * @param {number | undefined | null} n
    */
   function fmtNum(n) {
-    if (n == null) return '—';
+    if (n == null) return '-';
     return Number(n).toLocaleString('pt-BR');
   }
 
@@ -51,7 +52,7 @@
    * @param {Array<{ name: string }> | undefined} genres
    */
   function formatGenres(genres) {
-    return genres?.map((g) => g.name).join(' · ') || 'Sem informação';
+    return genres?.map((g) => g.name).join(', ') || 'Sem informacao';
   }
 
   /**
@@ -86,7 +87,7 @@
     history.back();
   }
 
-  // Quebra de avaliações RAWG (exceptional/recommended/meh/skip) — dado não usado antes
+  // Quebra de avaliacoes RAWG (exceptional, recommended, meh, skip): dado nao usado antes
   let ratingBreakdown = $derived.by(() => {
     const ratings = game?.ratings;
     if (!Array.isArray(ratings) || ratings.length === 0) return [];
@@ -193,14 +194,13 @@
             {:else}
               <div class="game-cover-fallback">{game.name.slice(0, 2).toUpperCase()}</div>
             {/if}
-            <span class="poster-tag">void · arcade</span>
             {#if game.metacritic}
-              <span class="rank-chip {metaClass(game.metacritic)}">RANK {metaRank(game.metacritic)} · {game.metacritic}</span>
+              <span class="rank-chip {metaClass(game.metacritic)}">RANK {metaRank(game.metacritic)} - {game.metacritic}</span>
             {/if}
           </div>
 
           <div class="game-title-section">
-            <p class="cinema-kicker">ficha cinematográfica</p>
+            <p class="cinema-note">Ficha do jogo</p>
             <h1 class="game-title">{game.name}</h1>
 
           {#if game.genres && game.genres.length > 0}
@@ -210,22 +210,22 @@
           <div class="hud-bar" role="list" aria-label="HUD stats">
             <div class="hud-stat" role="listitem">
               <span class="hud-label">Nota</span>
-              <strong class="hud-value">{game.rating ? game.rating.toFixed(1) : '—'} ★</strong>
+              <strong class="hud-value">{game.rating ? game.rating.toFixed(1) : '-'} ★</strong>
               <span class="hud-sub">{fmtNum(game.ratings_count)} votos</span>
             </div>
             <div class="hud-stat" role="listitem">
               <span class="hud-label">Metacritic</span>
-              <strong class="hud-value hud-meta {metaClass(game.metacritic)}">{game.metacritic ?? '—'}</strong>
+              <strong class="hud-value hud-meta {metaClass(game.metacritic)}">{game.metacritic ?? '-'}</strong>
               <span class="hud-sub">rank {metaRank(game.metacritic)}</span>
             </div>
             <div class="hud-stat" role="listitem">
               <span class="hud-label">Tempo</span>
-              <strong class="hud-value">{game.playtime ? `${game.playtime}h` : '—'}</strong>
-              <span class="hud-sub">média RAWG</span>
+              <strong class="hud-value">{game.playtime ? `${game.playtime}h` : '-'}</strong>
+              <span class="hud-sub">media RAWG</span>
             </div>
             <div class="hud-stat" role="listitem">
               <span class="hud-label">Conquistas</span>
-              <strong class="hud-value">{game.achievements_count ?? '—'}</strong>
+              <strong class="hud-value">{game.achievements_count ?? '-'}</strong>
               <span class="hud-sub">{fmtNum(game.added)} saves</span>
             </div>
           </div>
@@ -352,7 +352,7 @@
 
             <div class="spec-item">
               <span class="spec-label">Rating RAWG</span>
-              <strong class="spec-value">{game.rating ? game.rating.toFixed(1) : '—'} / 5</strong>
+              <strong class="spec-value">{game.rating ? game.rating.toFixed(1) : '-'} / 5</strong>
             </div>
 
             {#if game.achievements_count}
@@ -391,7 +391,7 @@
               <!-- svelte-ignore a11y_media_has_caption -->
               <video class="trailer" src={trailer} poster={trailerPoster} controls preload="none"></video>
             {/if}
-            <h3>DLCs · Additions ({additions.length})</h3>
+            <h3>DLCs ({additions.length})</h3>
             {#if additions.length > 0}
               <div class="extras-grid">
                 {#each additions.slice(0, 6) as dlc (dlc.id)}
@@ -441,9 +441,9 @@
         <button class="btn-wishlist" class:added={inList} onclick={handleToggleWishlist}>
           {#if inList}
             <Check size={18} />
-            <span>Na Wishlist · {wishlistCount}</span>
+            <span>Na Wishlist ({wishlistCount})</span>
           {:else}
-            <span>+ Adicionar · {wishlistCount} na lista</span>
+            <span>+ Adicionar ({wishlistCount} na lista)</span>
           {/if}
         </button>
       </div>
@@ -452,7 +452,7 @@
   {#if lightbox}
     <button class="lightbox" onclick={() => (lightbox = null)} aria-label="Fechar imagem expandida">
       <img src={lightbox} alt="Screenshot expandida" />
-      <span class="lightbox-hint">clique para fechar · esc</span>
+      <span class="lightbox-hint">clique para fechar (esc)</span>
     </button>
   {/if}
 {/if}
@@ -602,28 +602,11 @@
     position: relative;
   }
 
-  .poster-tag {
-    position: absolute;
-    left: 10px;
-    bottom: 10px;
-    padding: 6px 10px;
-    border-radius: var(--radius-pill);
-    background: rgba(6, 8, 14, 0.84);
-    border: 1px solid var(--border-accent);
-    color: var(--lime);
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  .cinema-kicker {
+  .cinema-note {
     margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--violet);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-soft);
   }
 
   .cinema-card {
@@ -779,7 +762,7 @@
     font-weight: 600;
   }
 
-  /* Veredito da comunidade — quebra de ratings RAWG */
+  /* Veredito da comunidade: numero + barra fina sem track de fundo */
   .ratings-breakdown {
     display: flex;
     flex-direction: column;
@@ -801,16 +784,17 @@
   }
 
   .rb-track {
-    height: 10px;
-    border-radius: var(--radius-pill);
-    background: var(--surface-strong);
-    border: 1px solid var(--border);
+    height: 6px;
+    background: transparent;
+    border: none;
     overflow: hidden;
+    display: flex;
+    align-items: center;
   }
 
   .rb-fill {
     display: block;
-    height: 100%;
+    height: 6px;
     border-radius: var(--radius-pill);
     transform-origin: left;
     animation: rb-grow 0.7s var(--ease-out) both;

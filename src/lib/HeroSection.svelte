@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Telescope, Heart, Star, Package, ArrowDown, Gamepad2 } from 'lucide-svelte';
+  import { Telescope, Heart, Star, Package } from 'lucide-svelte';
 
   type FeaturedGame = {
     background_image?: string;
@@ -50,11 +50,10 @@
   <div class="hero-inner">
     <div class="hero-left">
       <p class="hero-eyebrow">
-        <span class="eyebrow-pulse" aria-hidden="true"></span>
-        Powered by RAWG · +{fmt(gamesCount)} jogos no catálogo
+        Powered by RAWG: +{fmt(gamesCount)} jogos no catálogo
       </p>
       <h1 id="hero-title" class="hero-title">
-        Sua próxima<br />obsessão <span class="title-lime">gamer</span><br />começa aqui.
+        Sua próxima obsessão <span class="title-lime">gamer</span><br />começa aqui.
       </h1>
       <p class="hero-desc">
         Explore milhares de títulos, filtre por gênero e plataforma, e guarde
@@ -81,7 +80,7 @@
         </div>
         <div class="stat">
           <dt><Star size={14} aria-hidden="true" /> Nota média</dt>
-          <dd>{avgRating ? avgRating.toFixed(1).replace('.', ',') : '—'}</dd>
+          <dd>{avgRating ? avgRating.toFixed(1).replace('.', ',') : '-'}</dd>
         </div>
       </dl>
     </div>
@@ -90,7 +89,6 @@
       {#if featuredGame?.background_image}
         <figure class="spot-card">
           <img src={featuredGame.background_image} alt={featuredGame?.name ? `Arte do jogo ${featuredGame.name}` : 'Arte do jogo em destaque'} loading="lazy" />
-          <span class="spot-tag"><Gamepad2 size={13} aria-hidden="true" /> Destaque RAWG</span>
           {#if featuredGame?.name}
             <figcaption class="spot-cap">
               <strong>{featuredGame.name}</strong>
@@ -98,15 +96,13 @@
             </figcaption>
           {/if}
         </figure>
+        <p class="spot-note">Destaque RAWG</p>
       {:else}
         <div class="spot-fallback" aria-hidden="true">
           <span class="spot-fallback-mark">GAMEWISH</span>
-          <span class="spot-fallback-sub">void · arcade · lime</span>
+          <span class="spot-fallback-sub">colecao viva</span>
         </div>
       {/if}
-      <a class="scroll-hint" href="#catalogo" aria-label="Rolar para o catálogo">
-        <ArrowDown size={15} aria-hidden="true" /> role para explorar
-      </a>
     </aside>
   </div>
 
@@ -169,20 +165,16 @@
     border: 1px solid var(--border-accent); border-radius: var(--radius-pill);
     background: rgba(215,245,66,0.07);
   }
-  .eyebrow-pulse {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--lime); box-shadow: 0 0 0 4px rgba(215,245,66,0.18);
-    animation: pulse-dot 2s ease-in-out infinite;
-  }
   .hero-title {
     font-family: var(--font-display);
     font-size: clamp(2.1rem, 4.6vw, 3.6rem);
-    font-weight: 800; line-height: 1.04; letter-spacing: -0.02em;
+    font-weight: 800; line-height: 1.08; letter-spacing: -0.02em;
     color: var(--text-strong); margin: 0;
     text-wrap: balance;
+    padding-bottom: 4px;
   }
   .title-lime {
-    display: inline-block; padding: 0 14px; border-radius: 14px;
+    display: inline-block; padding: 0 14px 3px; border-radius: 14px;
     background: var(--lime); color: #101503;
     transform: rotate(-1.5deg);
   }
@@ -230,23 +222,20 @@
     transition: transform var(--duration-normal) var(--ease-out);
   }
   .spot-card:hover { transform: rotate(0deg) translateY(-3px); }
-  .spot-card img { width: 100%; height: 300px; object-fit: cover; }
-  .spot-tag {
-    position: absolute; top: 12px; left: 12px;
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 12px; border-radius: var(--radius-pill);
-    background: rgba(6,8,14,0.82); border: 1px solid var(--border-accent);
-    color: var(--lime); font-family: var(--font-mono);
-    font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
-  }
+  .spot-card img { width: 100%; height: 300px; object-fit: cover; display: block; }
   .spot-cap {
-    position: absolute; left: 12px; right: 12px; bottom: 12px;
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 10px 14px; border-radius: var(--radius-md);
-    background: rgba(6,8,14,0.85); border: 1px solid var(--border);
+    padding: 10px 14px;
+    background: rgba(6,8,14,0.92); border-top: 1px solid var(--border);
     color: var(--text-strong); font-size: 0.85rem;
   }
   .spot-cap span { color: var(--lime); font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
+  .spot-note {
+    margin: 0;
+    font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-muted);
+  }
   .spot-fallback {
     display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end;
     gap: 6px; height: 300px; padding: 20px;
@@ -255,13 +244,6 @@
   }
   .spot-fallback-mark { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; color: var(--text-strong); }
   .spot-fallback-sub { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--lime); }
-  .scroll-hint {
-    display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;
-    font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--text-muted); text-decoration: none; padding: 4px 2px;
-  }
-  .scroll-hint:hover { color: var(--lime); }
   .hero-marquee {
     position: relative; z-index: 1;
     border-top: 1px solid var(--border);
@@ -289,6 +271,6 @@
     .hero-marquee { font-size: 0.7rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .marquee-track, .eyebrow-pulse { animation: none; }
+    .marquee-track { animation: none; }
   }
 </style>

@@ -217,7 +217,7 @@
   let wishlistAvg = $derived(getAverageRating($wishlist));
   let wishlistHours = $derived($wishlist.reduce((acc, g) => acc + (Number(g.playtime) || 0), 0));
 
-  // Mix de gêneros da wishlist — barra empilhada colorida pelo gênero
+  // Mix de generos da wishlist: barra empilhada colorida por genero
   let genreMix = $derived.by(() => {
     /** @type {Map<string, { name: string; count: number; color: string }>} */
     const counts = new Map();
@@ -283,15 +283,15 @@
 </script>
 
 <svelte:head>
-  <title>Gamewish — sua wishlist de games</title>
+  <title>Gamewish: sua wishlist de games</title>
   <meta name="description" content="Descubra jogos, pesquise por título e salve tudo em uma wishlist local com interface refinada." />
-  <meta property="og:title" content="Gamewish — sua wishlist de games" />
+  <meta property="og:title" content="Gamewish: sua wishlist de games" />
   <meta property="og:description" content="Descubra jogos, pesquise por título e salve tudo em uma wishlist local." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://gamewishlist.vercel.app/" />
   <meta property="og:image" content="https://gamewishlist.vercel.app/favicon-512.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Gamewish — sua wishlist de games" />
+  <meta name="twitter:title" content="Gamewish: sua wishlist de games" />
   <meta name="twitter:description" content="Descubra jogos, pesquise por título e salve tudo em uma wishlist local." />
   <meta name="twitter:image" content="https://gamewishlist.vercel.app/favicon-512.png" />
   <script type="application/ld+json">
@@ -324,7 +324,6 @@
     />
 
     <div id="catalogo" class="catalog-toolbar" aria-label="Resumo do catálogo">
-      <p class="toolbar-kicker">void · arcade · lime — catálogo RAWG ao vivo</p>
       <p class="toolbar-count" aria-live="polite">
         {#if loading}Sintonizando o arcade…
         {:else if totalCount > 0}{totalCount.toLocaleString('pt-BR')} títulos · página {currentPage}
@@ -350,7 +349,6 @@
   {:else}
     <section class="wishlist-container">
       <div class="wishlist-header">
-        <p class="cockpit-kicker">void · arcade — seu arsenal salvo</p>
         <h2>Minha Wishlist</h2>
         <p>Seus jogos favoritos, guardados no navegador e prontos para a próxima run.</p>
         {#if $wishlist.length > 0}
@@ -373,8 +371,8 @@
           </div>
 
           {#if genreMix.length > 0}
-            <div class="genre-mix" aria-label="Mix de gêneros da wishlist">
-              <span class="mix-kicker">mix de gêneros</span>
+            <div class="genre-mix" aria-label="Mix de generos da wishlist">
+              <span class="mix-label">Mix de gêneros</span>
               <div class="mix-bar">
                 {#each genreMix as g (g.name)}
                   <span
@@ -386,7 +384,7 @@
               </div>
               <div class="mix-legend">
                 {#each genreMix as g (g.name)}
-                  <span class="mix-item"><i style="background: {g.color}"></i>{g.name} · {g.count}</span>
+                  <span class="mix-item"><i style="background: {g.color}"></i>{g.name} ({g.count})</span>
                 {/each}
               </div>
             </div>
@@ -413,10 +411,8 @@
           <div class="empty-orbit" aria-hidden="true">
             <span class="orbit-ring"></span>
             <span class="orbit-core">◍</span>
-            <span class="orbit-dot dot-a"></span>
-            <span class="orbit-dot dot-b"></span>
           </div>
-          <p class="empty-kicker">wishlist · sinal fraco</p>
+          <p class="empty-note">Wishlist vazia por aqui</p>
           <h3>Nenhum cartucho guardado ainda</h3>
           <p>Explore o catálogo, abra um destaque e salve os títulos que merecem uma segunda run.</p>
           <div class="empty-actions">
@@ -463,16 +459,6 @@
     background: rgba(255, 255, 255, 0.02);
   }
 
-  .toolbar-kicker {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--lime);
-  }
-
   .toolbar-count {
     margin: 0;
     color: var(--text-muted);
@@ -498,16 +484,6 @@
     letter-spacing: -0.02em;
     margin: 0;
     color: var(--text);
-  }
-
-  .cockpit-kicker {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--lime);
   }
 
   .wishlist-header p {
@@ -577,13 +553,10 @@
     flex-direction: column;
     gap: 8px;
   }
-  .mix-kicker {
-    font-family: var(--font-mono);
-    font-size: 0.66rem;
+  .mix-label {
+    font-size: 0.85rem;
     font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--violet);
+    color: var(--text-soft);
   }
   .mix-bar {
     display: flex;
@@ -654,14 +627,16 @@
     max-width: 50ch;
   }
 
+  /* Shape lock: botoes sempre pill, cards 20px, badges pequenos 6px */
   .btn-start {
     margin-top: 8px;
     border: 1px solid var(--lime);
     background: var(--lime);
     color: #101503;
-    padding: 12px 18px;
-    border-radius: var(--radius-lg);
+    padding: 12px 22px;
+    border-radius: var(--radius-pill);
     font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
     transition: all var(--duration-normal) var(--ease-in-out);
     box-shadow: var(--shadow-lime);
@@ -681,12 +656,10 @@
       var(--surface);
   }
 
-  .empty-kicker {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--lime) !important;
+  .empty-note {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-soft);
   }
 
   .empty-orbit {
@@ -717,16 +690,6 @@
     box-shadow: var(--shadow-lime);
   }
 
-  .orbit-dot {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-  }
-
-  .dot-a { top: 6px; right: 22px; background: var(--violet); }
-  .dot-b { bottom: 10px; left: 18px; background: var(--violet); }
-
   .empty-actions {
     display: flex;
     flex-wrap: wrap;
@@ -738,12 +701,13 @@
   .btn-ghost {
     display: inline-flex;
     align-items: center;
-    padding: 12px 18px;
-    border-radius: var(--radius-lg);
+    padding: 12px 22px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--border-strong);
     color: var(--text);
     text-decoration: none;
     font-weight: 700;
+    white-space: nowrap;
   }
 
   .btn-ghost:hover {

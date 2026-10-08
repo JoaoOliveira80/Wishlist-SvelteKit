@@ -43,7 +43,7 @@
    * @param {Array<{ name: string }> | undefined} genres
    */
   function formatGenres(genres) {
-    return genres?.map((g) => g.name).join(' · ') || 'Sem informação';
+    return genres?.map((g) => g.name).join(', ') || 'Sem informacao';
   }
 
   /**
@@ -166,7 +166,7 @@
           <div class="modal-quickmeta hud-mini">
             <div class="qmeta-item">
               <span class="qmeta-label">Nota</span>
-              <strong class="qmeta-value">{game.rating ? game.rating.toFixed(1) : '—'} ★</strong>
+              <strong class="qmeta-value">{game.rating ? game.rating.toFixed(1) : '-'} ★</strong>
             </div>
             {#if fullDetails?.metacritic}
               <div class="qmeta-item">
@@ -176,11 +176,11 @@
             {/if}
             <div class="qmeta-item">
               <span class="qmeta-label">Tempo</span>
-              <strong class="qmeta-value">{fullDetails?.playtime ? `${fullDetails.playtime}h` : '—'}</strong>
+              <strong class="qmeta-value">{fullDetails?.playtime ? `${fullDetails.playtime}h` : '-'}</strong>
             </div>
             <div class="qmeta-item">
               <span class="qmeta-label">Conq.</span>
-              <strong class="qmeta-value">{fullDetails?.achievements_count ?? '—'}</strong>
+              <strong class="qmeta-value">{fullDetails?.achievements_count ?? '-'}</strong>
             </div>
           </div>
         </div>
@@ -299,7 +299,7 @@
 
             <div class="spec-item">
               <span class="spec-label">Rating RAWG</span>
-              <strong class="spec-value">{game.rating ? game.rating.toFixed(1) : '—'} / 5</strong>
+              <strong class="spec-value">{game.rating ? game.rating.toFixed(1) : '-'} / 5</strong>
             </div>
 
             {#if fullDetails?.achievements_count}
@@ -738,14 +738,16 @@
     background: rgba(var(--rgb-surface), 0.5);
   }
 
+  /* Shape lock: botoes sempre pill */
   .btn-modal-close,
   .btn-modal-wishlist {
     border: none;
-    border-radius: var(--radius-md);
-    padding: 12px 14px;
+    border-radius: var(--radius-pill);
+    padding: 12px 18px;
     font-weight: 700;
     font-size: 0.9rem;
     cursor: pointer;
+    white-space: nowrap;
     transition: all var(--duration-fast) var(--ease-in-out);
   }
 
