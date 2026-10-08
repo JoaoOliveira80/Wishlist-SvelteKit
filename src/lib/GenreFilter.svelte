@@ -2,30 +2,58 @@
   import { getGenreColorVar } from './colors.js';
 
   let {
+    options = [],
+    selected = [],
+    onChange = () => {},
+    // Aliases legados (GameGrid antigo passava strings): mantidos por compatibilidade.
     genres = [],
     selectedGenres = [],
-    onGenreChange = () => {},
+    onGenreChange = null,
     isOpen = false,
     onOpenChange = () => {},
     label = 'Gêneros',
     icon = null
   } = $props();
 
-  /** @param {string} genre */
-  function toggleGenre(genre) {
-    const isSelected = selectedGenres.includes(genre);
+  // Normaliza para {value, label}; aceita o formato antigo de strings.
+  let normOptions = $derived(
+    options.length > 0
+      ? options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o))
+      : genres.map((g) => (typeof g === 'string' ? { value: g, label: g } : g)),
+  );
+  let normSelected = $derived(
+    (onGenreChange ? selectedGenres : selected) || [],
+  );
+  /** @param {string[]} v */
+  function emit(v) {
+    if (onGenreChange) onGenreChange(v);
+    else onChange(v);
+  }
+
+  let filterText = $state('');
+  let visibleOptions = $derived(
+    filterText.trim()
+      ? normOptions.filter((o) => o.label.toLowerCase().includes(filterText.trim().toLowerCase()))
+      : normOptions,
+  );
+
+  /** @param {string} value */
+  function toggleGenre(value) {
+    const isSelected = normSelected.includes(value);
     const updated = isSelected
-      ? selectedGenres.filter((g) => g !== genre)
-      : [...selectedGenres, genre];
-    onGenreChange(updated);
+      ? normSelected.filter((g) => g !== value)
+      : [...normSelected, value];
+    emit(updated);
   }
 
   function clearFilters() {
-    onGenreChange([]);
+    filterText = '';
+    emit([]);
     onOpenChange(false);
   }
 
   function toggleDropdown() {
+    if (!isOpen) filterText = '';
     onOpenChange(!isOpen);
   }
 </script>
@@ -39,8 +67,8 @@
       {/if}
       <span>{label}</span>
     </span>
-    {#if selectedGenres.length > 0}
-      <span class="badge">{selectedGenres.length}</span>
+    {#if normSelected.length > 0}
+      <span class="badge">{normSelected.length}</span>
     {/if}
     <span class="icon" class:open={isOpen}>⌄</span>
   </div>
@@ -49,21 +77,35 @@
     <div class="dropdown" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
       <div class="dropdown-header">
         <span>Selecione {label.toLowerCase()}</span>
-        {#if selectedGenres.length > 0}
+        {#if normSelected.length > 0}
           <button onclick={clearFilters} class="clear-btn">Limpar</button>
         {/if}
       </div>
 
+      {#if normOptions.length > 8}
+        <div class="dropdown-search">
+          <input
+            type="text"
+            placeholder="Filtrar {label.toLowerCase()}..."
+            aria-label="Filtrar {label.toLowerCase()}"
+            bind:value={filterText}
+          />
+        </div>
+      {/if}
+
       <div class="genres-grid">
-        {#each genres as genre (genre)}
+        {#each visibleOptions as opt (opt.value)}
           <button
             class="genre-tag"
-            class:selected={selectedGenres.includes(genre)}
-            onclick={() => toggleGenre(genre)}
-            style="--genre-color: {getGenreColorVar(genre)}"
+            class:selected={normSelected.includes(opt.value)}
+            onclick={() => toggleGenre(opt.value)}
+            title={opt.label}
+            style="--genre-color: {getGenreColorVar(opt.label)}"
           >
-            {genre}
+            {opt.label}
           </button>
+        {:else}
+          <p class="no-options">Nada encontrado para "{filterText}".</p>
         {/each}
       </div>
     </div>
@@ -161,6 +203,38 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-soft);
+  }
+
+  .dropdown-search {
+    padding: 10px 12px 0;
+  }
+
+  .dropdown-search input {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-strong);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    font-size: 0.82rem;
+    outline: none;
+  }
+
+  .dropdown-search input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .dropdown-search input:focus {
+    border-color: var(--lime);
+  }
+
+  .no-options {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 12px 4px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    text-align: center;
   }
 
   .clear-btn {

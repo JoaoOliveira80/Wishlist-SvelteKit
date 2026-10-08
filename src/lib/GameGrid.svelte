@@ -18,6 +18,48 @@
    * }} Game
    */
 
+  /**
+   * @typedef {{name:string;slug:string;id?:number}} CatalogOption
+   */
+
+  /**
+   * @param {any} item
+   * @returns {{value:string;label:string}}
+   */
+  function toOption(item) {
+    if (typeof item === 'string') return { value: item.toLowerCase(), label: item };
+    if (item && typeof item === 'object') {
+      const value = item.slug ?? (item.id != null ? String(item.id) : item.name);
+      return { value: String(value), label: item.name ?? String(value) };
+    }
+    return { value: String(item), label: String(item) };
+  }
+
+  /**
+   * @param {any} item
+   * @returns {{value:string;label:string}}
+   */
+  function toPlatformOption(item) {
+    if (typeof item === 'string') return { value: item, label: item };
+    if (item && typeof item === 'object') {
+      const value = item.id != null ? String(item.id) : (item.slug ?? item.name);
+      return { value: String(value), label: item.name ?? String(value) };
+    }
+    return { value: String(item), label: String(item) };
+  }
+
+  /**
+   * @param {string} ordering
+   */
+  function orderingToSort(ordering) {
+    if (ordering === '-metacritic') return 'metacritic';
+    if (ordering === '-added') return 'added';
+    if (ordering === '-released') return 'recent';
+    if (ordering === '-updated') return 'updated';
+    if (ordering === 'name') return 'alpha';
+    return 'rating';
+  }
+
   let {
     games = [],
     loading = false,
@@ -28,6 +70,11 @@
     availableGenres = [],
     availableTags = [],
     availableParentPlatforms = [],
+    initialGenres = [],
+    initialTags = [],
+    initialParentPlatforms = [],
+    initialOrdering = '-rating',
+    initialPrecise = false,
     onFiltersChange = () => {},
     totalCount = 0,
     currentPage = 1,
@@ -42,6 +89,8 @@
   let searchPrecise = $state(false);
   let sortBy = $state('rating');
   let openFilter = $state(/** @type {'genres' | 'tags' | 'platforms' | null} */ (null));
+  let lastInitKey = $state('');
+  let lastSentKey = $state('');
 
   /**
    * @param {'genres' | 'tags' | 'platforms'} key
@@ -82,17 +131,26 @@
     return '-rating';
   }
 
-  // Extract all unique genres when catalog lists are not provided
-  let allGenres = $derived(
+  // Opcoes com valor de API (slug/id) + rotulo de exibicao.
+  // Quando o catalogo ainda nao chegou, deriva generos dos jogos visiveis.
+  let genreOptions = $derived(
     availableGenres.length > 0
-      ? availableGenres
+      ? availableGenres.map(toOption)
       : Array.from(
           new Set(games.flatMap((g) => g.genres?.map((/** @type {{ name: string }} */ gen) => gen.name) || [])),
-        ).sort(),
+        ).sort().map((name) => ({ value: String(name).toLowerCase(), label: name })),
   );
 
-  let allTags = $derived(availableTags);
-  let allParentPlatforms = $derived(availableParentPlatforms);
+  let tagOptions = $derived(availableTags.map(toOption));
+  let platformOptions = $derived(availableParentPlatforms.map(toPlatformOption));
+
+  /**
+   * @param {{value:string;label:string}[]} options
+   * @param {string} value
+   */
+  function optionLabel(options, value) {
+    return options.find((o) => o.value === value)?.label ?? value;
+  }
   let hasActiveFilters = $derived(
     selectedGenres.length > 0
     || selectedTags.length > 0
@@ -107,14 +165,34 @@
     selectedGenres.length + selectedTags.length + selectedParentPlatforms.length + (searchPrecise ? 1 : 0),
   );
 
+  // Adota os filtros vindos do pai (URL) sempre que ELES mudarem:
+  // hidratacao inicial apos o catalogo chegar e reset via logo.
+  // Mudancas feitas aqui nao re disparam este efeito, entao nao ha loop:
+  // a notificacao abaixo so escreve na URL quando o payload muda.
   $effect(() => {
-    onFiltersChange({
+    const key = JSON.stringify([initialGenres, initialTags, initialParentPlatforms, initialOrdering, initialPrecise]);
+    if (key === lastInitKey) return;
+    lastInitKey = key;
+    selectedGenres = [...initialGenres];
+    selectedTags = [...initialTags];
+    selectedParentPlatforms = [...initialParentPlatforms];
+    sortBy = orderingToSort(initialOrdering);
+    searchPrecise = initialPrecise;
+  });
+
+  // Notifica o pai somente quando algo realmente muda (evita loops e loads duplos).
+  $effect(() => {
+    const payload = {
       genres: selectedGenres,
       tags: selectedTags,
       parent_platforms: selectedParentPlatforms,
       ordering: getOrderingValue(),
       search_precise: searchPrecise,
-    });
+    };
+    const key = JSON.stringify(payload);
+    if (key === lastSentKey) return;
+    lastSentKey = key;
+    onFiltersChange(payload);
   });
 
   /**
@@ -148,20 +226,20 @@
     <div class="arcade-toolbar" aria-label="Controles da lista">
       <div class="filters-bar">
       <GenreFilter
-        genres={allGenres}
-        {selectedGenres}
-        onGenreChange={(/** @type {string[]} */ genres) => (selectedGenres = genres)}
+        options={genreOptions}
+        selected={selectedGenres}
+        onChange={(/** @type {string[]} */ genres) => (selectedGenres = genres)}
         isOpen={openFilter === 'genres'}
         onOpenChange={handleGenresOpenChange}
         label="Gêneros"
         icon={Gamepad2}
       />
 
-      {#if allTags.length > 0}
+      {#if tagOptions.length > 0}
         <GenreFilter
-          genres={allTags}
-          selectedGenres={selectedTags}
-          onGenreChange={(/** @type {string[]} */ tags) => (selectedTags = tags)}
+          options={tagOptions}
+          selected={selectedTags}
+          onChange={(/** @type {string[]} */ tags) => (selectedTags = tags)}
           isOpen={openFilter === 'tags'}
           onOpenChange={handleTagsOpenChange}
           label="Tags"
@@ -169,11 +247,11 @@
         />
       {/if}
 
-      {#if allParentPlatforms.length > 0}
+      {#if platformOptions.length > 0}
         <GenreFilter
-          genres={allParentPlatforms}
-          selectedGenres={selectedParentPlatforms}
-          onGenreChange={(/** @type {string[]} */ platforms) => (selectedParentPlatforms = platforms)}
+          options={platformOptions}
+          selected={selectedParentPlatforms}
+          onChange={(/** @type {string[]} */ platforms) => (selectedParentPlatforms = platforms)}
           isOpen={openFilter === 'platforms'}
           onOpenChange={handlePlatformsOpenChange}
           label="Plataformas"
@@ -213,19 +291,19 @@
       <div class="active-filters" aria-live="polite">
         {#each selectedGenres as genre (genre)}
           <button class="filter-chip" in:fly={{ y: -10, duration: 200 }} out:fade={{ duration: 150 }} onclick={() => removeFilterChip('genre', genre)}>
-            Gênero: {genre} <span aria-hidden="true">×</span>
+            Gênero: {optionLabel(genreOptions, genre)} <span aria-hidden="true">×</span>
           </button>
         {/each}
 
         {#each selectedTags as tag (tag)}
           <button class="filter-chip" in:fly={{ y: -10, duration: 200 }} out:fade={{ duration: 150 }} onclick={() => removeFilterChip('tag', tag)}>
-            Tag: {tag} <span aria-hidden="true">×</span>
+            Tag: {optionLabel(tagOptions, tag)} <span aria-hidden="true">×</span>
           </button>
         {/each}
 
         {#each selectedParentPlatforms as platform (platform)}
           <button class="filter-chip" in:fly={{ y: -10, duration: 200 }} out:fade={{ duration: 150 }} onclick={() => removeFilterChip('platform', platform)}>
-            Plataforma: {platform} <span aria-hidden="true">×</span>
+            Plataforma: {optionLabel(platformOptions, platform)} <span aria-hidden="true">×</span>
           </button>
         {/each}
 

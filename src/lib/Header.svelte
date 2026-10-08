@@ -2,8 +2,10 @@
   import { Search, Heart, Compass, X } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { onDestroy } from 'svelte';
   import { wishlist } from './wishlist.js';
-  let { activeTab = 'explore', onTabChange = () => {}, wishlistCount = 0, query = $bindable(''), onSearch = () => {} } = $props();
+  import { homeReset } from './homeReset.js';
+  let { activeTab = 'explore', onTabChange = (_tab: string) => {}, wishlistCount = 0, query = $bindable(''), onSearch = (_v: string) => {} } = $props();
   let searchFocused = $state(false);
 
   let displayedWishlistCount = $state(0);
@@ -12,7 +14,68 @@
     displayedWishlistCount = wishlistCount || $wishlist.length;
   });
 
+  // Aba ativa derivada da URL: o Header mora no layout e nao recebe props da pagina.
+  let urlTab = $derived($page.url.searchParams.get('tab') === 'wishlist' ? 'wishlist' : 'explore');
+  let effectiveTab = $derived(urlTab || activeTab);
+
+  // Busca dirigida pela URL (?q=...), fonte unica de verdade com a pagina.
+  let inputValue = $state('');
+  let committedQ = $state('');
+  let searchInit = $state(false);
+  let searchTimer: ReturnType<typeof setTimeout> | undefined = undefined;
+
+  onDestroy(() => {
+    if (searchTimer) clearTimeout(searchTimer);
+  });
+
+  // Sincroniza quando a URL muda por fora (voltar/avancar, troca de aba, limpar).
+  $effect(() => {
+    const urlQ = $page.url.searchParams.get('q') ?? '';
+    if (!searchInit) {
+      inputValue = urlQ;
+      committedQ = urlQ;
+      query = urlQ;
+      searchInit = true;
+      return;
+    }
+    if (urlQ !== committedQ) {
+      committedQ = urlQ;
+      inputValue = urlQ;
+      query = urlQ;
+    }
+  });
+
+  // Navega para a home a partir de qualquer rota (o `?...` sozinho
+  // manteria o pathname atual, ex. /game/123).
+  function navTo(target: string) {
+    const dest = ($page.url.pathname === '/' ? '' : '/') + (target ? `?${target}` : '/');
+    const current = $page.url.pathname + ($page.url.searchParams.toString() ? `?${$page.url.searchParams.toString()}` : '');
+    if (dest !== current) {
+      goto(dest, { replaceState: true, keepFocus: true });
+    }
+  }
+
+  function commitSearch(value: string) {
+    const next = value.trim();
+    committedQ = next;
+    query = next;
+    try { onSearch(next); } catch (e) {}
+    const params = new URLSearchParams($page.url.searchParams);
+    if (next.length >= 1) {
+      params.set('q', next);
+    } else {
+      params.delete('q');
+    }
+    params.delete('page');
+    // Busca vale para o explore: sair da wishlist ao digitar.
+    if (next.length >= 1 && (params.get('tab') === 'wishlist')) {
+      params.delete('tab');
+    }
+    navTo(params.toString());
+  }
+
   function handleTabChange(tab: string) {
+    if (searchTimer) clearTimeout(searchTimer);
     // Update URL search param `tab` so the page reacts to it
     const params = new URLSearchParams($page.url.searchParams);
     if (tab && tab !== 'explore') {
@@ -21,33 +84,55 @@
       params.delete('tab');
     }
 
-    const queryString = params.toString();
-    goto(queryString ? `?${queryString}` : '/', { replaceState: true, keepFocus: true });
+    navTo(params.toString());
     // call optional external handler for compatibility
     try { onTabChange(tab); } catch (e) {}
   }
 
+  // Logo: home totalmente limpa, sem busca, sem filtros, sem pagina.
+  // A URL e limpa aqui e o estado local e resetado via store,
+  // porque a pagina (dona dos filtros) nao recebe props do layout.
+  function goHome() {
+    if (searchTimer) clearTimeout(searchTimer);
+    inputValue = '';
+    committedQ = '';
+    query = '';
+    try { onSearch(''); } catch (e) {}
+    homeReset.update((n) => n + 1);
+    navTo('');
+  }
+
   function handleSearchInput(e: Event & { currentTarget: EventTarget & HTMLInputElement }) {
     const t = e.target as HTMLInputElement;
-    onSearch(t.value);
+    inputValue = t.value;
+    query = t.value;
+    if (searchTimer) clearTimeout(searchTimer);
+    const snapshot = t.value;
+    searchTimer = setTimeout(() => {
+      commitSearch(snapshot);
+    }, 300);
   }
-  function clearSearch() { onSearch(''); }
+  function clearSearch() {
+    if (searchTimer) clearTimeout(searchTimer);
+    inputValue = '';
+    commitSearch('');
+  }
 </script>
 
 <header class="header">
   <div class="header-inner">
-    <button class="brand" onclick={() => handleTabChange('explore')} aria-label="GameWish - explorar">
+    <button class="brand" onclick={goHome} aria-label="GameWish - início">
       <span class="brand-mark" aria-hidden="true"><img src="/logo.svg" alt="" width="28" height="28" /></span>
       <span class="brand-text"><span class="brand-name">GAME<em>WISH</em></span><span class="brand-sub">sua coleção viva</span></span>
     </button>
     <div class="search-wrap" class:focused={searchFocused}>
       <Search class="search-icon" size={17} />
-      <input type="text" placeholder="Busque por título… ex: Elden Ring" aria-label="Buscar jogos" value={query} oninput={handleSearchInput} onfocus={() => searchFocused = true} onblur={() => searchFocused = false} />
-      {#if query}<button class="search-clear" onclick={clearSearch} aria-label="Limpar busca"><X size={14} /></button>{:else}<kbd class="search-kbd">/</kbd>{/if}
+      <input type="text" placeholder="Busque por título… ex: Elden Ring" aria-label="Buscar jogos" value={inputValue} oninput={handleSearchInput} onfocus={() => searchFocused = true} onblur={() => searchFocused = false} />
+      {#if inputValue}<button class="search-clear" onclick={clearSearch} aria-label="Limpar busca"><X size={14} /></button>{:else}<kbd class="search-kbd">/</kbd>{/if}
     </div>
     <nav class="nav" aria-label="Navegação principal">
-      <button class="nav-btn" class:active={activeTab === 'explore'} onclick={() => handleTabChange('explore')}><Compass class="nav-icon" size={17} /><span class="nav-label">Explorar</span></button>
-      <button class="nav-btn wishlist-btn" class:active={activeTab === 'wishlist'} onclick={() => handleTabChange('wishlist')}><Heart class="nav-icon" size={17} /><span class="nav-label">Wishlist</span>{#if displayedWishlistCount > 0}<span class="badge">{displayedWishlistCount}</span>{/if}</button>
+      <button class="nav-btn" class:active={effectiveTab === 'explore'} onclick={() => handleTabChange('explore')}><Compass class="nav-icon" size={17} /><span class="nav-label">Explorar</span></button>
+      <button class="nav-btn wishlist-btn" class:active={effectiveTab === 'wishlist'} onclick={() => handleTabChange('wishlist')}><Heart class="nav-icon" size={17} /><span class="nav-label">Wishlist</span>{#if displayedWishlistCount > 0}<span class="badge">{displayedWishlistCount}</span>{/if}</button>
     </nav>
   </div>
 </header>

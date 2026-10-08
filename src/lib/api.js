@@ -386,8 +386,8 @@ export async function getGamesByFilters(filters = {}, fetcher = fetch) {
     ordering: filters.ordering || "-rating",
   };
 
-  if (filters.search && filters.search.length >= 2) {
-    params.search = filters.search;
+  if (filters.search && filters.search.trim().length >= 1) {
+    params.search = filters.search.trim();
   }
 
   if (filters.genres && filters.genres.length > 0) {

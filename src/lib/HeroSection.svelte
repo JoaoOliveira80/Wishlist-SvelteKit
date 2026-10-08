@@ -1,14 +1,16 @@
 <script lang="ts">
   import { Telescope, Heart, Star, Package } from 'lucide-svelte';
+  import { goto } from '$app/navigation';
 
   type FeaturedGame = {
+    id?: number | string;
     background_image?: string;
     name?: string;
     rating?: number;
-  } | null;
+  };
 
   interface Props {
-    featuredGame?: FeaturedGame;
+    featuredGames?: FeaturedGame[];
     gamesCount?: number;
     wishlistCount?: number;
     avgRating?: number;
@@ -17,7 +19,7 @@
   }
 
   let {
-    featuredGame = null,
+    featuredGames = [],
     gamesCount = 0,
     wishlistCount = 0,
     avgRating = 0,
@@ -36,13 +38,64 @@
     onExplore();
     scrollToCatalog();
   }
+
+  // Carrossel de destaques: autoplay com pausa em hover/foco e sem
+  // movimento quando o usuario prefere movimento reduzido.
+  let spotIndex = $state(0);
+  let spotPaused = $state(false);
+  let reduceMotion = $state(false);
+
+  $effect(() => {
+    if (typeof window !== 'undefined' && typeof matchMedia !== 'undefined') {
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      reduceMotion = mq.matches;
+      const onChange = (e: MediaQueryListEvent) => (reduceMotion = e.matches);
+      mq.addEventListener?.('change', onChange);
+      return () => mq.removeEventListener?.('change', onChange);
+    }
+  });
+
+  let spots = $derived((featuredGames ?? []).filter((g) => g && g.background_image).slice(0, 3));
+
+  $effect(() => {
+    if (spotIndex > spots.length - 1) spotIndex = 0;
+  });
+
+  // Leque vertical: mid em destaque, top/bot desfocados e deslocados.
+  // O autoplay gira mid -> top -> bot -> mid; o tick avanca o indice.
+  function posOf(i: number) {
+    const n = spots.length;
+    if (n < 2) return 'mid';
+    const rel = (i - spotIndex + n) % n;
+    if (rel === 0) return 'mid';
+    if (rel === 1) return 'bot';
+    return 'top';
+  }
+
+  function handleSpotClick(i: number) {
+    if (posOf(i) === 'mid') {
+      const id = spots[i]?.id;
+      if (id != null) goto(`/game/${id}`);
+    } else {
+      spotIndex = i;
+    }
+  }
+
+  $effect(() => {
+    if (reduceMotion || spotPaused || spots.length < 2) return;
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      spotIndex = (spotIndex + 1) % spots.length;
+    }, 5000);
+    return () => clearInterval(id);
+  });
 </script>
 
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero-grid-bg" aria-hidden="true"></div>
-  {#if featuredGame?.background_image}
+  {#if spots[0]?.background_image}
     <div class="hero-art" aria-hidden="true">
-      <img src={featuredGame.background_image} alt="" loading="eager" fetchpriority="high" />
+      <img src={spots[0].background_image} alt="" loading="eager" fetchpriority="high" />
       <div class="hero-art-frame"></div>
     </div>
   {/if}
@@ -85,18 +138,43 @@
       </dl>
     </div>
 
-    <aside class="hero-right" aria-label="Destaque do catálogo">
-      {#if featuredGame?.background_image}
-        <figure class="spot-card">
-          <img src={featuredGame.background_image} alt={featuredGame?.name ? `Arte do jogo ${featuredGame.name}` : 'Arte do jogo em destaque'} loading="lazy" />
-          {#if featuredGame?.name}
-            <figcaption class="spot-cap">
-              <strong>{featuredGame.name}</strong>
-              {#if featuredGame.rating}<span>★ {featuredGame.rating}</span>{/if}
-            </figcaption>
-          {/if}
-        </figure>
-        <p class="spot-note">Destaque RAWG</p>
+    <aside class="hero-right" aria-label="Destaques do catálogo">
+      {#if spots.length > 0}
+        <div
+          class="spot-stack"
+          role="group"
+          aria-roledescription="carrossel"
+          aria-label="Destaques RAWG"
+          onmouseenter={() => (spotPaused = true)}
+          onmouseleave={() => (spotPaused = false)}
+          onfocusin={() => (spotPaused = true)}
+          onfocusout={() => (spotPaused = false)}
+        >
+          {#each spots as spot, i (spot.name)}
+            {@const pos = posOf(i)}
+            <div class="spot spot-{pos}">
+              <button
+                type="button"
+                class="spot-btn"
+                onclick={() => handleSpotClick(i)}
+                aria-label={pos === 'mid'
+                  ? (spot.id != null ? `Abrir página de ${spot.name}` : `${spot.name}`)
+                  : `Destacar ${spot.name}`}
+              >
+                <img
+                  src={spot.background_image}
+                  alt={spot.name ? `Arte do jogo ${spot.name}` : 'Arte do jogo em destaque'}
+                  loading="lazy"
+                />
+              </button>
+              <div class="spot-cap" aria-hidden={pos === 'mid' ? undefined : 'true'}>
+                <strong>{spot.name}</strong>
+                {#if spot.rating}<span>★ {spot.rating}</span>{/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+        <p class="spot-note">Destaques RAWG</p>
       {:else}
         <div class="spot-fallback" aria-hidden="true">
           <span class="spot-fallback-mark">GAMEWISH</span>
@@ -156,6 +234,13 @@
     padding: clamp(32px, 4.5vw, 52px) clamp(24px, 4vw, 48px) clamp(24px, 3vw, 32px);
   }
   .hero-left { display: flex; flex-direction: column; gap: 18px; max-width: 620px; }
+  /* Entrada escalonada do hero: cada bloco sobe em sequencia narrativa. */
+  .hero-left > * { animation: float-in 0.6s var(--ease-out) both; }
+  .hero-left > *:nth-child(2) { animation-delay: 0.06s; }
+  .hero-left > *:nth-child(3) { animation-delay: 0.12s; }
+  .hero-left > *:nth-child(4) { animation-delay: 0.18s; }
+  .hero-left > *:nth-child(5) { animation-delay: 0.24s; }
+  .hero-right { animation: float-in 0.6s var(--ease-out) 0.15s both; }
   .hero-eyebrow {
     display: inline-flex; align-items: center; gap: 10px;
     width: fit-content; padding: 8px 14px;
@@ -215,19 +300,66 @@
   }
   .stat dd { margin: 0; font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text-strong); }
   .hero-right { display: flex; flex-direction: column; gap: 14px; align-items: stretch; }
-  .spot-card {
-    position: relative; margin: 0; overflow: hidden;
-    border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
-    background: #0a0e18; transform: rotate(1.5deg);
-    transition: transform var(--duration-normal) var(--ease-out);
+  /* Leque vertical: os 3 visiveis de uma vez, o do meio em destaque.
+     Os nos mantem identidade entre giros, entao transform/filter/opacity
+     animam a troca de posicao via transition. */
+  .spot-stack { display: flex; flex-direction: column; align-items: stretch; }
+  .spot {
+    position: relative;
+    transition: transform 0.65s var(--ease-out),
+      filter 0.65s var(--ease-out),
+      opacity 0.65s var(--ease-out);
   }
-  .spot-card:hover { transform: rotate(0deg) translateY(-3px); }
-  .spot-card img { width: 100%; height: 300px; object-fit: cover; display: block; }
+  .spot + .spot { margin-top: -64px; }
+  .spot-btn {
+    display: block; width: 100%; padding: 0; overflow: hidden;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
+    background: #0a0e18; cursor: pointer;
+    transition: border-color var(--duration-normal) var(--ease-out),
+      border-radius 0.5s var(--ease-out),
+      box-shadow var(--duration-normal) var(--ease-out);
+  }
+  .spot-btn img { width: 100%; height: 190px; object-fit: cover; display: block; }
+  .spot-mid { z-index: 3; transform: translateX(0) scale(1); filter: none; opacity: 1; }
+  .spot-mid .spot-btn {
+    border-color: var(--border-accent);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-md);
+  }
+  .spot-mid .spot-btn img { animation: spot-breathe 7s ease-in-out infinite alternate; }
+  @keyframes spot-breathe {
+    from { transform: scale(1); }
+    to { transform: scale(1.035); }
+  }
+  .spot-top {
+    z-index: 1;
+    transform: translateX(30px) scale(0.9);
+    filter: blur(2px) brightness(0.6);
+    opacity: 0.85;
+  }
+  .spot-bot {
+    z-index: 2;
+    transform: translateX(-30px) scale(0.9);
+    filter: blur(2px) brightness(0.6);
+    opacity: 0.85;
+  }
   .spot-cap {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 10px 14px;
-    background: rgba(6,8,14,0.92); border-top: 1px solid var(--border);
+    padding: 10px 14px; margin: 0;
+    background: rgba(6,8,14,0.92);
+    border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     color: var(--text-strong); font-size: 0.85rem;
+    max-height: 60px; opacity: 1; overflow: hidden;
+    transition: max-height 0.5s var(--ease-out),
+      opacity 0.5s var(--ease-out),
+      padding 0.5s var(--ease-out),
+      border-color 0.5s var(--ease-out);
+  }
+  .spot-top .spot-cap, .spot-bot .spot-cap {
+    max-height: 0; opacity: 0;
+    padding-top: 0; padding-bottom: 0;
+    border-color: transparent;
   }
   .spot-cap span { color: var(--lime); font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
   .spot-note {
@@ -236,6 +368,7 @@
     letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--text-muted);
   }
+
   .spot-fallback {
     display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end;
     gap: 6px; height: 300px; padding: 20px;
@@ -258,7 +391,11 @@
   @media (max-width: 1020px) {
     .hero-inner { grid-template-columns: 1fr; }
     .hero-right { max-width: 560px; }
-    .spot-card img, .spot-fallback { height: 240px; }
+    .spot-btn img { height: 160px; }
+    .spot + .spot { margin-top: -52px; }
+    .spot-top { transform: translateX(18px) scale(0.9); }
+    .spot-bot { transform: translateX(-18px) scale(0.9); }
+    .spot-fallback { height: 240px; }
   }
   @media (max-width: 640px) {
     .hero { border-radius: var(--radius-lg); }
@@ -272,5 +409,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .marquee-track { animation: none; }
+    .spot-mid .spot-btn img { animation: none; }
+    .hero-left > *, .hero-right { animation: none; }
   }
 </style>

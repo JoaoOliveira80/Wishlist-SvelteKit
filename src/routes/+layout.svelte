@@ -10,7 +10,7 @@
 <div class="app-shell">
   <a href="#main-content" class="skip-link">Pular para o conteúdo principal</a>
   <Header />
-  {#key $page.url.pathname + $page.url.search}
+  {#key $page.url.pathname}
     <main id="main-content" class="main-content" tabindex="-1" in:fade={{ duration: 160 }}>
       {@render children()}
     </main>

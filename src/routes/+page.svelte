@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { getGamesByFilters, getAllGenres, getAllTags, getAllParentPlatforms } from '$lib/api.js';
   import { wishlist } from '$lib/wishlist.js';
+  import { homeReset } from '$lib/homeReset.js';
   import { getGenreColor } from '$lib/colors.js';
   import HeroSection from '$lib/HeroSection.svelte';
   import GameGrid from '$lib/GameGrid.svelte';
@@ -15,12 +16,16 @@
   let tab = $state('explore');
   let selectedGame = $state(null);
   let debounce = $state(/** @type {ReturnType<typeof setTimeout> | undefined} */ (undefined));
-  let availableGenres = $state(/** @type {string[]} */ ([]));
-  let availableTags = $state(/** @type {string[]} */ ([]));
-  let availableParentPlatforms = $state(/** @type {string[]} */ ([]));
+  // Catalogos com valores de API (slug/id) + rotulos de exibicao.
+  let availableGenres = $state(/** @type {{name:string;slug:string}[]} */ ([]));
+  let availableTags = $state(/** @type {{name:string;slug:string}[]} */ ([]));
+  let availableParentPlatforms = $state(/** @type {{name:string;slug:string;id:number}[]} */ ([]));
   let totalCount = $state(0);
   let currentPage = $state(1);
   const pageSize = 20;
+  let loadToken = 0;
+
+  const VALID_ORDERINGS = ['-rating', '-added', '-metacritic', '-released', '-updated', 'name'];
 
   let exploreFilters = $state({
     genres: /** @type {string[]} */ ([]),
@@ -30,41 +35,134 @@
     search_precise: false,
   });
 
-  onMount(() => {
-    const params = $page.url.searchParams;
-    const urlQuery = params.get('q') || '';
-    const urlGenres = params.get('genres')?.split(',').filter(Boolean) || [];
-    const urlTags = params.get('tags')?.split(',').filter(Boolean) || [];
-    const urlPlatforms = params.get('platforms')?.split(',').filter(Boolean) || [];
-    const urlOrdering = params.get('sort') || '-rating';
-    const urlPrecise = params.get('precise') === 'true';
-    const urlPage = parseInt(params.get('page') || '1', 10);
-    const urlTab = params.get('tab') || 'explore';
+  /**
+   * Converte valores crus da URL (slug novo ou nome legado) para valores de API.
+   * @param {string[]} raw
+   * @param {{name:string;slug:string;id?:number}[]} catalog
+   * @param {boolean} useId
+   */
+  function reconcileValues(raw, catalog, useId = false) {
+    /** @type {string[]} */
+    const out = [];
+    for (const item of raw) {
+      const needle = String(item).toLowerCase().trim();
+      if (!needle) continue;
+      const found = catalog.find((c) => {
+        if (useId && String(c.id) === needle) return true;
+        if (c.slug && c.slug.toLowerCase() === needle) return true;
+        if (c.name && c.name.toLowerCase() === needle) return true;
+        return false;
+      });
+      if (found) {
+        out.push(useId ? String(found.id) : found.slug);
+      } else if (!out.includes(item)) {
+        out.push(item);
+      }
+    }
+    return [...new Set(out)];
+  }
 
-    if (urlQuery) query = urlQuery;
-    if (urlGenres.length > 0) exploreFilters.genres = urlGenres;
-    if (urlTags.length > 0) exploreFilters.tags = urlTags;
-    if (urlPlatforms.length > 0) exploreFilters.parent_platforms = urlPlatforms;
-    if (urlOrdering) exploreFilters.ordering = urlOrdering;
-    if (urlPrecise) exploreFilters.search_precise = true;
-    if (urlPage > 1) currentPage = urlPage;
-    if (urlTab === 'wishlist') tab = 'wishlist';
+  function readURLState() {
+    const params = $page.url.searchParams;
+    return {
+      q: params.get('q') || '',
+      genres: params.get('genres')?.split(',').filter(Boolean) || [],
+      tags: params.get('tags')?.split(',').filter(Boolean) || [],
+      platforms: params.get('platforms')?.split(',').filter(Boolean) || [],
+      ordering: params.get('sort') || '-rating',
+      precise: params.get('precise') === 'true',
+      page: parseInt(params.get('page') || '1', 10) || 1,
+      tab: params.get('tab') || 'explore',
+    };
+  }
+
+  onMount(() => {
+    const s = readURLState();
+    query = s.q;
+    if (VALID_ORDERINGS.includes(s.ordering)) exploreFilters.ordering = s.ordering;
+    exploreFilters.search_precise = s.precise;
+    if (s.page > 1) currentPage = s.page;
+    if (s.tab === 'wishlist') tab = 'wishlist';
+    // Generos/tags/plataformas reconciliados apos o catalogo carregar.
+    void initCatalog(s);
   });
 
-  // react to changes in the URL (e.g. when Header updates ?tab=... via goto)
+  /** @param {{genres:string[];tags:string[];platforms:string[]}} s */
+  async function initCatalog(s) {
+    await loadCatalogFilters();
+    if (s.genres.length > 0) exploreFilters.genres = reconcileValues(s.genres, availableGenres);
+    if (s.tags.length > 0) exploreFilters.tags = reconcileValues(s.tags, availableTags);
+    if (s.platforms.length > 0) {
+      exploreFilters.parent_platforms = reconcileValues(s.platforms, availableParentPlatforms, true);
+    }
+    await loadExploreGames();
+  }
+
+  // Reage a mudancas externas da URL (busca do Header no layout, voltar/avancar).
+  // Escritas proprias via updateURL() atualizam o estado local antes, entao nao recarregam aqui.
   $effect(() => {
     const params = $page.url.searchParams;
     const urlTab = params.get('tab') || 'explore';
-    tab = urlTab === 'wishlist' ? 'wishlist' : 'explore';
+    const nextTab = urlTab === 'wishlist' ? 'wishlist' : 'explore';
+    if (nextTab !== tab) tab = nextTab;
+
+    const urlQ = params.get('q') || '';
+    if (urlQ !== query) {
+      query = urlQ;
+      currentPage = 1;
+      if (tab === 'explore') void loadExploreGames();
+      return;
+    }
+
+    const urlPage = parseInt(params.get('page') || '1', 10) || 1;
+    if (urlPage !== currentPage) {
+      currentPage = urlPage;
+      if (tab === 'explore') void loadExploreGames();
+    }
+  });
+
+  // Logo clicada no Header (layout): limpa busca, filtros e pagina.
+  let seenReset = $state(0);
+  function resetHome() {
+    const clean = query === ''
+      && currentPage === 1
+      && tab === 'explore'
+      && exploreFilters.genres.length === 0
+      && exploreFilters.tags.length === 0
+      && exploreFilters.parent_platforms.length === 0
+      && exploreFilters.ordering === '-rating'
+      && !exploreFilters.search_precise;
+    if (clean) return;
+    clearTimeout(debounce);
+    query = '';
+    exploreFilters = {
+      genres: [],
+      tags: [],
+      parent_platforms: [],
+      ordering: '-rating',
+      search_precise: false,
+    };
+    currentPage = 1;
+    tab = 'explore';
+    void loadExploreGames();
+  }
+
+  $effect(() => {
+    const r = $homeReset;
+    if (r === seenReset) return;
+    seenReset = r;
+    if (r === 0) return;
+    resetHome();
   });
 
   async function loadExploreGames() {
+    const token = ++loadToken;
     loading = true;
     error = '';
     try {
       const trimmedQuery = query.trim();
       const result = await getGamesByFilters({
-        search: trimmedQuery.length >= 2 ? trimmedQuery : undefined,
+        search: trimmedQuery.length >= 1 ? trimmedQuery : undefined,
         genres: exploreFilters.genres,
         tags: exploreFilters.tags,
         parent_platforms: exploreFilters.parent_platforms,
@@ -73,15 +171,17 @@
         page: currentPage,
         page_size: pageSize,
       });
+      if (token !== loadToken) return;
       games = result.results;
       totalCount = result.count;
     } catch (err) {
+      if (token !== loadToken) return;
       console.error(err);
       error = 'Não foi possível carregar os jogos agora. Tente novamente em instantes.';
       games = [];
       totalCount = 0;
     } finally {
-      loading = false;
+      if (token === loadToken) loading = false;
     }
   }
 
@@ -92,22 +192,23 @@
         getAllTags(),
         getAllParentPlatforms(),
       ]);
-      availableGenres = genres.map((genre) => genre.name);
-      availableTags = tags.map((tag) => tag.name);
-      availableParentPlatforms = parentPlatforms.map((platform) => platform.name);
+      availableGenres = genres
+        .filter((g) => g && g.slug && g.name)
+        .map((g) => ({ name: g.name, slug: g.slug }));
+      availableTags = tags
+        .filter((t) => t && t.slug && t.name)
+        .map((t) => ({ name: t.name, slug: t.slug }));
+      availableParentPlatforms = parentPlatforms
+        .filter((p) => p && p.name)
+        .map((p) => ({ name: p.name, slug: p.slug || '', id: p.id }));
     } catch (err) {
       console.error('Failed to load filters catalog', err);
     }
   }
 
-  onMount(() => {
-    void loadCatalogFilters();
-    void loadExploreGames();
-  });
-
   function updateURL() {
     const params = new URLSearchParams();
-    if (query.trim().length >= 2) params.set('q', query.trim());
+    if (query.trim().length >= 1) params.set('q', query.trim());
     if (exploreFilters.genres.length > 0) params.set('genres', exploreFilters.genres.join(','));
     if (exploreFilters.tags.length > 0) params.set('tags', exploreFilters.tags.join(','));
     if (exploreFilters.parent_platforms.length > 0) params.set('platforms', exploreFilters.parent_platforms.join(','));
@@ -138,6 +239,21 @@
   function retryLoadGames() {
     void loadExploreGames();
   }
+
+  // 3 destaques aleatorios com imagem para o carrossel do hero.
+  /**
+   * @param {any[]} list
+   */
+  function pickSpots(list) {
+    const pool = list.filter((g) => g && g.background_image).slice(0, 10);
+    for (let i = pool.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 3);
+  }
+
+  let featuredSpots = $derived(pickSpots(games));
 
   /**
    * @param {any[]} left
@@ -315,7 +431,7 @@
 <main class="main-container" id="main-content" tabindex="-1">
   {#if tab === 'explore'}
     <HeroSection
-      featuredGame={games[0]}
+      featuredGames={featuredSpots}
       gamesCount={totalCount}
       wishlistCount={$wishlist.length}
       avgRating={getAverageRating(games)}
@@ -340,6 +456,11 @@
       {availableGenres}
       {availableTags}
       {availableParentPlatforms}
+      initialGenres={exploreFilters.genres}
+      initialTags={exploreFilters.tags}
+      initialParentPlatforms={exploreFilters.parent_platforms}
+      initialOrdering={exploreFilters.ordering}
+      initialPrecise={exploreFilters.search_precise}
       onFiltersChange={handleExploreFiltersChange}
       {totalCount}
       {currentPage}
