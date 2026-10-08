@@ -1,14 +1,20 @@
 {
-  "name": "GameWishlist",
-  "short_name": "Wishlist",
+  "name": "Gamewish",
+  "short_name": "Gamewish",
   "description": "Descubra jogos, pesquise por título e salve tudo em uma wishlist local com interface refinada.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0f1419",
-  "theme_color": "#4ba3d0",
+  "background_color": "#06080e",
+  "theme_color": "#06080e",
   "scope": "/",
   "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "/favicon-192.png",
       "sizes": "192x192",
@@ -19,7 +25,13 @@
       "src": "/favicon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["games", "entertainment", "utilities"],

@@ -30,22 +30,26 @@
 
   .skeleton-card {
     border-radius: var(--radius-lg);
-    background: var(--surface);
+    background:
+      radial-gradient(300px 120px at 20% 0%, rgba(215, 245, 66, 0.06), transparent 65%),
+      var(--surface);
     border: 1px solid var(--border);
     overflow: hidden;
     animation: fade-in 0.3s var(--ease-out) both;
   }
 
   .skeleton-cover {
-    height: 200px;
+    aspect-ratio: 16 / 10;
     background: linear-gradient(
       90deg,
-      var(--surface-strong) 0%,
-      var(--surface-hover) 50%,
-      var(--surface-strong) 100%
+      #0e1422 0%,
+      rgba(215, 245, 66, 0.14) 28%,
+      #1f2a4a 50%,
+      rgba(139, 92, 246, 0.16) 72%,
+      #0e1422 100%
     );
     background-size: 200% 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
+    animation: shimmer 1.4s ease-in-out infinite;
   }
 
   .skeleton-content {
@@ -61,12 +65,12 @@
     border-radius: var(--radius-xs);
     background: linear-gradient(
       90deg,
-      var(--surface-strong) 0%,
-      var(--surface-hover) 50%,
-      var(--surface-strong) 100%
+      #131a2e 0%,
+      rgba(215, 245, 66, 0.16) 50%,
+      #131a2e 100%
     );
     background-size: 200% 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
+    animation: shimmer 1.4s ease-in-out infinite;
   }
 
   .skeleton-genres {
@@ -77,15 +81,15 @@
   .skeleton-badge {
     height: 22px;
     width: 60px;
-    border-radius: var(--radius-xs);
+    border-radius: var(--radius-pill);
     background: linear-gradient(
       90deg,
-      var(--surface-strong) 0%,
-      var(--surface-hover) 50%,
-      var(--surface-strong) 100%
+      #131a2e 0%,
+      rgba(139, 92, 246, 0.24) 50%,
+      #131a2e 100%
     );
     background-size: 200% 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
+    animation: shimmer 1.4s ease-in-out infinite;
   }
 
   .skeleton-badge.short {
@@ -104,12 +108,12 @@
     border-radius: var(--radius-sm);
     background: linear-gradient(
       90deg,
-      var(--surface-strong) 0%,
-      var(--surface-hover) 50%,
-      var(--surface-strong) 100%
+      #131a2e 0%,
+      rgba(215, 245, 66, 0.12) 50%,
+      #131a2e 100%
     );
     background-size: 200% 100%;
-    animation: shimmer 1.8s ease-in-out infinite;
+    animation: shimmer 1.4s ease-in-out infinite;
   }
 
   .skeleton-btn.small {

@@ -1,15 +1,51 @@
 <script>
-  import { X, ExternalLink, Check } from 'lucide-svelte';
+  import { ExternalLink, Check } from 'lucide-svelte';
   import { toggleWishlist, isInWishlist, wishlist } from '$lib/wishlist.js';
   import OptimizedImage from '$lib/OptimizedImage.svelte';
 
-  /** @type {{ data: { game: any, screenshots: any[], error?: string } }} */
+  /** @type {{ data: { game: any, screenshots: any[], additions: any[], series: any[], stores: any[], movies: any[], error?: string } }} */
   let { data } = $props();
 
   let game = $derived(data.game);
   let screenshots = $derived(data.screenshots || []);
+  let additions = $derived(data.additions || []);
+  let series = $derived(data.series || []);
+  let stores = $derived(data.stores || []);
+  let movies = $derived(data.movies || []);
   let activeTab = $state('overview');
+  /** @type {string | null} */
+  let lightbox = $state(null);
   let inList = $derived(game && isInWishlist($wishlist, game));
+  let wishlistCount = $derived($wishlist.length);
+
+  /**
+   * @param {number | undefined | null} meta
+   */
+  function metaClass(meta) {
+    if (meta == null) return '';
+    if (meta >= 75) return 'meta-high';
+    if (meta >= 50) return 'meta-mid';
+    return 'meta-low';
+  }
+
+  /**
+   * @param {number | undefined | null} meta
+   */
+  function metaRank(meta) {
+    if (meta == null) return '—';
+    if (meta >= 85) return 'S';
+    if (meta >= 75) return 'A';
+    if (meta >= 60) return 'B';
+    return 'C';
+  }
+
+  /**
+   * @param {number | undefined | null} n
+   */
+  function fmtNum(n) {
+    if (n == null) return '—';
+    return Number(n).toLocaleString('pt-BR');
+  }
 
   /**
    * @param {Array<{ name: string }> | undefined} genres
@@ -49,28 +85,63 @@
   function goBack() {
     history.back();
   }
-  </script>
+
+  // Quebra de avaliações RAWG (exceptional/recommended/meh/skip) — dado não usado antes
+  let ratingBreakdown = $derived.by(() => {
+    const ratings = game?.ratings;
+    if (!Array.isArray(ratings) || ratings.length === 0) return [];
+    const meta = [
+      { title: 'exceptional', label: 'Obra-prima', cls: 'rb-exc' },
+      { title: 'recommended', label: 'Recomendado', cls: 'rb-rec' },
+      { title: 'meh', label: 'Mediano', cls: 'rb-meh' },
+      { title: 'skip', label: 'Pule', cls: 'rb-skip' },
+    ];
+    return meta
+      .map((m) => {
+        const r = ratings.find((x) => x.title === m.title);
+        return { ...m, percent: r?.percent ?? 0, count: r?.count ?? 0 };
+      })
+      .filter((r) => r.count > 0);
+  });
+
+  // Link da comunidade (Reddit) quando disponível
+  let communityUrl = $derived(game?.reddit_url || null);
+
+  /**
+   * @param {KeyboardEvent} e
+   */
+  function onLightboxKey(e) {
+    if (e.key === 'Escape') lightbox = null;
+  }
+
+  let trailer = $derived(
+    movies?.[0]?.video || game?.clip?.clip || game?.clip?.video || null,
+  );
+  let trailerPoster = $derived(movies?.[0]?.preview || game?.background_image || '');
+</script>
+
+<svelte:window onkeydown={onLightboxKey} />
 
 <svelte:head>
   {#if game}
-    <title>{game.name} | GameWishlist</title>
+    <title>{game.name} | Gamewish</title>
     <meta name="description" content={stripHtml(game.description_raw || '').slice(0, 160)} />
     <meta property="og:title" content={game.name} />
     <meta property="og:description" content={stripHtml(game.description_raw || '').slice(0, 160)} />
     <meta property="og:type" content="video.game" />
     <meta property="og:url" content="https://gamewishlist.vercel.app/game/{game.id}" />
-    <meta property="og:image" content={game.background_image || 'https://gamewishlist.vercel.app/logo.png'} />
+    <meta property="og:image" content={game.background_image || 'https://gamewishlist.vercel.app/favicon-512.png'} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={game.name} />
     <meta name="twitter:description" content={stripHtml(game.description_raw || '').slice(0, 160)} />
-    <meta name="twitter:image" content={game.background_image || 'https://gamewishlist.vercel.app/logo.png'} />
+    <meta name="twitter:image" content={game.background_image || 'https://gamewishlist.vercel.app/favicon-512.png'} />
     <script type="application/ld+json">
       {JSON.stringify({
         '@context': 'https://schema.org',
         '@type': 'VideoGame',
         name: game.name,
         description: stripHtml(game.description_raw || ''),
-        image: game.background_image || 'https://gamewishlist.vercel.app/logo.png',
+        image: game.background_image || 'https://gamewishlist.vercel.app/favicon-512.png',
         genre: game.genres?.map(g => g.name) || [],
         datePublished: game.released || null,
         aggregateRating: game.rating ? {
@@ -104,68 +175,89 @@
 
     <!-- Content -->
     <div class="page-content">
-      <button class="back-link" onclick={goBack}>
-        <X size={16} />
-        Voltar
+      <button class="back-link" onclick={goBack} aria-label="Voltar para o catálogo">
+        ← Voltar ao arcade
       </button>
 
-      <div class="game-header">
-        {#if game.background_image}
-          <OptimizedImage src={game.background_image} alt={game.name} aspectRatio="2/3" />
-        {:else}
-          <div class="game-cover-fallback">{game.name.slice(0, 2).toUpperCase()}</div>
-        {/if}
+      <div class="cinema-hero" aria-label="Apresentação do jogo">
+        <div class="cinema-backdrop" aria-hidden="true">
+          {#if game.background_image}
+            <img src={game.background_image} alt="" loading="eager" />
+          {/if}
+          <span class="cinema-grain"></span>
+        </div>
+        <div class="cinema-card">
+          <div class="poster-frame">
+            {#if game.background_image}
+              <OptimizedImage src={game.background_image} alt={game.name} aspectRatio="2/3" />
+            {:else}
+              <div class="game-cover-fallback">{game.name.slice(0, 2).toUpperCase()}</div>
+            {/if}
+            <span class="poster-tag">void · arcade</span>
+            {#if game.metacritic}
+              <span class="rank-chip {metaClass(game.metacritic)}">RANK {metaRank(game.metacritic)} · {game.metacritic}</span>
+            {/if}
+          </div>
 
-        <div class="game-title-section">
-          <h1 class="game-title">{game.name}</h1>
+          <div class="game-title-section">
+            <p class="cinema-kicker">ficha cinematográfica</p>
+            <h1 class="game-title">{game.name}</h1>
 
           {#if game.genres && game.genres.length > 0}
             <p class="game-genres">{formatGenres(game.genres)}</p>
           {/if}
 
-          <div class="game-quickmeta">
-            <div class="qmeta-item">
-              <span class="qmeta-label">Rating</span>
-              <strong class="qmeta-value">{game.rating ? game.rating.toFixed(1) : '—'} ★</strong>
+          <div class="hud-bar" role="list" aria-label="HUD stats">
+            <div class="hud-stat" role="listitem">
+              <span class="hud-label">Nota</span>
+              <strong class="hud-value">{game.rating ? game.rating.toFixed(1) : '—'} ★</strong>
+              <span class="hud-sub">{fmtNum(game.ratings_count)} votos</span>
             </div>
-            {#if game.metacritic}
-              <div class="qmeta-item">
-                <span class="qmeta-label">Metacritic</span>
-                <strong
-                  class="qmeta-value"
-                  style="color: {game.metacritic >= 75 ? '#10b981' : game.metacritic >= 50 ? '#f59e0b' : '#ef4444'}"
-                >
-                  {game.metacritic}
-                </strong>
-              </div>
-            {/if}
-            <div class="qmeta-item">
-              <span class="qmeta-label">Lançado</span>
-              <strong class="qmeta-value">{game.released ? game.released.split('-')[0] : 'TBA'}</strong>
+            <div class="hud-stat" role="listitem">
+              <span class="hud-label">Metacritic</span>
+              <strong class="hud-value hud-meta {metaClass(game.metacritic)}">{game.metacritic ?? '—'}</strong>
+              <span class="hud-sub">rank {metaRank(game.metacritic)}</span>
+            </div>
+            <div class="hud-stat" role="listitem">
+              <span class="hud-label">Tempo</span>
+              <strong class="hud-value">{game.playtime ? `${game.playtime}h` : '—'}</strong>
+              <span class="hud-sub">média RAWG</span>
+            </div>
+            <div class="hud-stat" role="listitem">
+              <span class="hud-label">Conquistas</span>
+              <strong class="hud-value">{game.achievements_count ?? '—'}</strong>
+              <span class="hud-sub">{fmtNum(game.added)} saves</span>
             </div>
           </div>
         </div>
       </div>
+      </div>
 
       <!-- Tabs -->
-      <div class="game-tabs">
-        <button class="game-tab" class:active={activeTab === 'overview'} onclick={() => (activeTab = 'overview')}>
-          Visão Geral
+      <div class="game-tabs" role="tablist">
+        <button class="game-tab" class:active={activeTab === 'overview'} onclick={() => (activeTab = 'overview')} role="tab">
+          Overview
         </button>
-        <button class="game-tab" class:active={activeTab === 'specs'} onclick={() => (activeTab = 'specs')}>
-          Especificações
+        <button class="game-tab" class:active={activeTab === 'specs'} onclick={() => (activeTab = 'specs')} role="tab">
+          Ficha
         </button>
-        {#if screenshots.length > 0}
-          <button class="game-tab" class:active={activeTab === 'gallery'} onclick={() => (activeTab = 'gallery')}>
-            Galeria
-          </button>
-        {/if}
+        <button class="game-tab" class:active={activeTab === 'gallery'} onclick={() => (activeTab = 'gallery')} role="tab">
+          Galeria
+        </button>
+        <button class="game-tab" class:active={activeTab === 'extras'} onclick={() => (activeTab = 'extras')} role="tab">
+          Extras
+        </button>
       </div>
 
       <!-- Body -->
       <div class="game-body">
         {#if activeTab === 'overview'}
           <div class="tab-content">
+            {#if trailer}
+              <h3>Trailer</h3>
+              <!-- svelte-ignore a11y_media_has_caption -->
+              <video class="trailer" src={trailer} poster={trailerPoster} controls preload="none"></video>
+            {/if}
             {#if game.description_raw}
               <h3>Descrição</h3>
               <p>{stripHtml(game.description_raw).slice(0, 500)}{game.description_raw.length > 500 ? '...' : ''}</p>
@@ -190,6 +282,26 @@
                   <span class="platform-badge">+{game.platforms.length - 6}</span>
                 {/if}
               </div>
+            {/if}
+
+            {#if ratingBreakdown.length > 0}
+              <h3>Veredito da comunidade</h3>
+              <div class="ratings-breakdown" role="list" aria-label="Distribuição de avaliações">
+                {#each ratingBreakdown as r (r.title)}
+                  <div class="rb-row {r.cls}" role="listitem">
+                    <span class="rb-label">{r.label}</span>
+                    <span class="rb-track"><span class="rb-fill" style="width: {r.percent}%"></span></span>
+                    <span class="rb-pct">{Math.round(r.percent)}%</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
+            {#if communityUrl}
+              <a class="community-link" href={communityUrl} target="_blank" rel="noopener">
+                <span>Discutir na comunidade</span>
+                <ExternalLink size={14} />
+              </a>
             {/if}
           </div>
         {:else if activeTab === 'specs'}
@@ -231,8 +343,7 @@
               <div class="spec-item">
                 <span class="spec-label">Pontuação Metacritic</span>
                 <strong
-                  class="spec-value"
-                  style="color: {game.metacritic >= 75 ? '#10b981' : game.metacritic >= 50 ? '#f59e0b' : '#ef4444'}"
+                  class="spec-value {game.metacritic >= 75 ? 'meta-high' : game.metacritic >= 50 ? 'meta-mid' : 'meta-low'}"
                 >
                   {game.metacritic}/100
                 </strong>
@@ -261,29 +372,89 @@
               </div>
             {/if}
           </div>
-        {:else if activeTab === 'gallery' && screenshots.length > 0}
-          <div class="screenshots-grid">
-            {#each screenshots as screenshot (screenshot.id)}
-               <OptimizedImage src={screenshot.image} alt="Screenshot" loading="lazy" />
-            {/each}
+        {:else if activeTab === 'gallery'}
+          {#if screenshots.length > 0}
+            <div class="screenshots-grid">
+              {#each screenshots as screenshot (screenshot.id)}
+                <button class="shot-btn" onclick={() => (lightbox = screenshot.image)} aria-label="Expandir screenshot">
+                  <OptimizedImage src={screenshot.image} alt="Screenshot" loading="lazy" />
+                </button>
+              {/each}
+            </div>
+          {:else}
+            <p class="muted">Sem screenshots disponíveis.</p>
+          {/if}
+        {:else if activeTab === 'extras'}
+          <div class="tab-content extras">
+            {#if trailer}
+              <h3>Trailer</h3>
+              <!-- svelte-ignore a11y_media_has_caption -->
+              <video class="trailer" src={trailer} poster={trailerPoster} controls preload="none"></video>
+            {/if}
+            <h3>DLCs · Additions ({additions.length})</h3>
+            {#if additions.length > 0}
+              <div class="extras-grid">
+                {#each additions.slice(0, 6) as dlc (dlc.id)}
+                  <a class="extra-card" href="/game/{dlc.id}">
+                    {#if dlc.background_image}<img src={dlc.background_image} alt="" loading="lazy" />{/if}
+                    <span>{dlc.name}</span>
+                  </a>
+                {/each}
+              </div>
+            {:else}
+              <p class="muted">Sem DLCs listadas.</p>
+            {/if}
+            <h3>Mesma série ({series.length})</h3>
+            {#if series.length > 0}
+              <div class="extras-grid">
+                {#each series.slice(0, 6) as s (s.id)}
+                  <a class="extra-card" href="/game/{s.id}">
+                    {#if s.background_image}<img src={s.background_image} alt="" loading="lazy" />{/if}
+                    <span>{s.name}</span>
+                  </a>
+                {/each}
+              </div>
+            {:else}
+              <p class="muted">Sem títulos da série.</p>
+            {/if}
+            <h3>Lojas ({stores.length})</h3>
+            {#if stores.length > 0}
+              <div class="stores-list">
+                {#each stores as st (st.id)}
+                  {#if st.url}
+                    <a class="store-link" href={st.url} target="_blank" rel="noopener">{st.name} ↗</a>
+                  {:else}
+                    <span class="store-link dim">{st.name}</span>
+                  {/if}
+                {/each}
+              </div>
+            {:else}
+              <p class="muted">Sem links de loja.</p>
+            {/if}
           </div>
         {/if}
       </div>
 
       <!-- Footer -->
-      <div class="game-footer">
+      <div class="game-footer sticky-cta" role="group" aria-label="Ações da wishlist">
         <button class="btn-back" onclick={goBack}>Voltar</button>
         <button class="btn-wishlist" class:added={inList} onclick={handleToggleWishlist}>
           {#if inList}
             <Check size={18} />
-            <span>Na Wishlist</span>
+            <span>Na Wishlist · {wishlistCount}</span>
           {:else}
-            <span>+ Adicionar</span>
+            <span>+ Adicionar · {wishlistCount} na lista</span>
           {/if}
         </button>
       </div>
     </div>
   </div>
+  {#if lightbox}
+    <button class="lightbox" onclick={() => (lightbox = null)} aria-label="Fechar imagem expandida">
+      <img src={lightbox} alt="Screenshot expandida" />
+      <span class="lightbox-hint">clique para fechar · esc</span>
+    </button>
+  {/if}
 {/if}
 
 <style>
@@ -318,8 +489,8 @@
     margin-top: 8px;
     padding: 10px 20px;
     border-radius: var(--radius-md);
-    background: var(--accent);
-    color: #ffffff;
+    background: var(--lime);
+    color: #101503;
     border: none;
     font-weight: 600;
     cursor: pointer;
@@ -327,7 +498,7 @@
   }
 
   .back-btn:hover {
-    background: var(--accent-bright);
+    background: var(--lime-soft);
     transform: translateY(-1px);
   }
 
@@ -386,13 +557,81 @@
   }
 
   .back-link:hover {
-    color: var(--accent-bright);
+    color: var(--lime);
   }
 
-  .game-header {
+  .cinema-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    background: var(--surface);
+  }
+
+  .cinema-backdrop {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .cinema-backdrop img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.34;
+    filter: saturate(1.15);
+  }
+
+  .cinema-grain {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(700px 260px at 18% 0%, rgba(139, 92, 246, 0.28), transparent 62%),
+      linear-gradient(180deg, rgba(6, 8, 14, 0.55) 0%, rgba(6, 8, 14, 0.92) 100%);
+  }
+
+  .cinema-card {
+    position: relative;
     display: grid;
     grid-template-columns: 200px 1fr;
     gap: 24px;
+    padding: 24px;
+  }
+
+  .poster-frame {
+    position: relative;
+  }
+
+  .poster-tag {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    padding: 6px 10px;
+    border-radius: var(--radius-pill);
+    background: rgba(6, 8, 14, 0.84);
+    border: 1px solid var(--border-accent);
+    color: var(--lime);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .cinema-kicker {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--violet);
+  }
+
+  .cinema-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    padding: 24px;
   }
 
   /* The .game-cover class was previously used to size the OptimizedImage wrapper.
@@ -462,6 +701,10 @@
     font-family: 'Space Grotesk', sans-serif;
   }
 
+  .qmeta-value.meta-high, .spec-value.meta-high { color: var(--lime); }
+  .qmeta-value.meta-mid, .spec-value.meta-mid { color: var(--gold); }
+  .qmeta-value.meta-low, .spec-value.meta-low { color: var(--pink); }
+
   .game-tabs {
     display: grid;
     grid-auto-flow: column;
@@ -483,12 +726,12 @@
 
   .game-tab:hover {
     color: var(--text);
-    background: rgba(102, 192, 244, 0.05);
+    background: rgba(215, 245, 66, 0.06);
   }
 
   .game-tab.active {
-    color: var(--accent-bright);
-    border-bottom-color: var(--accent-bright);
+    color: var(--lime);
+    border-bottom-color: var(--lime);
   }
 
   .game-body {
@@ -536,6 +779,87 @@
     font-weight: 600;
   }
 
+  /* Veredito da comunidade — quebra de ratings RAWG */
+  .ratings-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 4px 0 4px;
+  }
+
+  .rb-row {
+    display: grid;
+    grid-template-columns: 108px 1fr 46px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .rb-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-soft);
+  }
+
+  .rb-track {
+    height: 10px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .rb-fill {
+    display: block;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    transform-origin: left;
+    animation: rb-grow 0.7s var(--ease-out) both;
+    transition: width 0.4s var(--ease-out);
+  }
+
+  .rb-pct {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: right;
+  }
+
+  .rb-exc .rb-fill { background: linear-gradient(90deg, var(--lime), #b6e21f); box-shadow: 0 0 12px rgba(215, 245, 66, 0.45); }
+  .rb-rec .rb-fill { background: linear-gradient(90deg, var(--violet), #a78bfa); box-shadow: 0 0 12px rgba(139, 92, 246, 0.4); }
+  .rb-meh .rb-fill { background: linear-gradient(90deg, var(--gold), #ffc75a); }
+  .rb-skip .rb-fill { background: linear-gradient(90deg, var(--pink), #ff9ac4); }
+
+  @keyframes rb-grow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  .community-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px 16px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-accent);
+    color: var(--violet);
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    width: fit-content;
+    transition:
+      background var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .community-link:hover {
+    background: rgba(139, 92, 246, 0.12);
+    border-color: var(--violet);
+    transform: translateY(-1px);
+  }
+
   .specs-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -548,7 +872,7 @@
     gap: 4px;
     padding: 12px;
     border-radius: var(--radius-md);
-    background: rgba(102, 192, 244, 0.05);
+    background: rgba(215, 245, 66, 0.05);
     border: 1px solid var(--border);
   }
 
@@ -573,7 +897,7 @@
 
   .spec-link {
     font-size: 0.95rem;
-    color: var(--accent-bright);
+    color: var(--lime);
     text-decoration: none;
     font-weight: 600;
     transition: all var(--duration-fast) var(--ease-out);
@@ -583,7 +907,7 @@
   }
 
   .spec-link:hover {
-    color: var(--accent-hover);
+    color: var(--lime-soft);
     text-decoration: underline;
   }
 
@@ -592,6 +916,113 @@
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
   }
+
+  .shot-btn {
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: transparent;
+    cursor: zoom-in;
+  }
+
+  .hud-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .hud-stat {
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    background: rgba(6, 8, 14, 0.72);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .hud-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .hud-value { font-size: 1.15rem; color: var(--text); font-weight: 800; }
+  .hud-meta.meta-high { color: var(--lime); }
+  .hud-meta.meta-mid { color: var(--gold); }
+  .hud-meta.meta-low { color: var(--pink); }
+  .hud-sub { font-size: 0.75rem; color: var(--text-muted); }
+
+  .rank-chip {
+    margin-top: 8px;
+    display: inline-flex;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--lime);
+    color: var(--lime);
+    background: rgba(215, 245, 66, 0.1);
+  }
+  .rank-chip.meta-mid { border-color: var(--gold); color: var(--gold); background: rgba(255, 178, 36, 0.12); }
+  .rank-chip.meta-low { border-color: var(--pink); color: var(--pink); background: rgba(255, 106, 168, 0.12); }
+
+  .trailer {
+    width: 100%;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-accent);
+    background: #000;
+  }
+
+  .muted { color: var(--text-muted); }
+  .extras { display: flex; flex-direction: column; gap: 14px; }
+  .extras-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .extra-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .extra-card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+  .extra-card span { display: block; padding: 8px 10px; }
+  .extra-card:hover { border-color: var(--lime); }
+  .stores-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .store-link {
+    border: 1px solid var(--lime);
+    color: var(--lime);
+    border-radius: 999px;
+    padding: 8px 14px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+  .store-link.dim { border-color: var(--border-strong); color: var(--text-muted); }
+
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgba(2, 4, 8, 0.9);
+    border: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    cursor: zoom-out;
+  }
+  .lightbox img { max-width: min(1100px, 92vw); max-height: 82vh; border-radius: 12px; border: 1px solid var(--lime); }
+  .lightbox-hint { color: var(--lime); font-size: 0.8rem; margin-top: 10px; }
 
   /* The screenshot images are now rendered via OptimizedImage, which already
    * provides appropriate sizing and aspect‑ratio handling. The custom .screenshot
@@ -625,7 +1056,7 @@
   .btn-back:hover {
     background: var(--surface-strong);
     border-color: var(--border-accent);
-    color: var(--accent-bright);
+    color: var(--lime);
   }
 
   .btn-wishlist {
@@ -645,10 +1076,21 @@
   }
 
   .btn-wishlist.added {
-    background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 4px 12px rgba(143, 185, 70, 0.3);
+    background: var(--lime);
+    color: #101503;
+    border: 1px solid var(--lime);
+    box-shadow: var(--shadow-lime);
+  }
+
+  .sticky-cta {
+    position: sticky;
+    bottom: 16px;
+    z-index: 5;
+    padding: 12px;
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-lg);
+    background: rgba(6, 8, 14, 0.88);
+    backdrop-filter: blur(14px);
   }
 
   @media (max-width: 768px) {
@@ -657,7 +1099,7 @@
       padding: 24px 0 40px;
     }
 
-    .game-header {
+    .cinema-card {
       grid-template-columns: 1fr;
     }
 

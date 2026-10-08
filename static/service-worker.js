@@ -11,10 +11,13 @@ const API_CACHE = 'api-v1';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/logo.png',
+  '/favicon.svg',
+  '/logo.svg',
   '/favicon.ico',
   '/favicon-192.png',
   '/favicon-512.png',
+  '/favicon-maskable-512.png',
+  '/apple-touch-icon.png',
 ];
 
 // Install event - cache static assets

@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { getGamesByFilters, getAllGenres, getAllTags, getAllParentPlatforms } from '$lib/api.js';
   import { wishlist } from '$lib/wishlist.js';
-  import Header from '$lib/Header.svelte';
+  import { getGenreColor } from '$lib/colors.js';
   import HeroSection from '$lib/HeroSection.svelte';
   import GameGrid from '$lib/GameGrid.svelte';
 
@@ -203,6 +203,75 @@
     selectedGame = game;
   }
 
+  let wishlistSort = $state('name');
+  /** @type {HTMLInputElement | null} */
+  let importInput = $state(null);
+
+  let sortedWishlist = $derived.by(() => {
+    const list = [...$wishlist];
+    if (wishlistSort === 'rating') return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    if (wishlistSort === 'year')
+      return list.sort((a, b) => (b.released ?? '').localeCompare(a.released ?? ''));
+    return list.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  });
+  let wishlistAvg = $derived(getAverageRating($wishlist));
+  let wishlistHours = $derived($wishlist.reduce((acc, g) => acc + (Number(g.playtime) || 0), 0));
+
+  // Mix de gêneros da wishlist — barra empilhada colorida pelo gênero
+  let genreMix = $derived.by(() => {
+    /** @type {Map<string, { name: string; count: number; color: string }>} */
+    const counts = new Map();
+    for (const g of $wishlist) {
+      const name = g.genres?.[0]?.name || 'Outros';
+      const key = name.toLowerCase();
+      const prev = counts.get(key) || { name, count: 0, color: getGenreColor(name) };
+      prev.count += 1;
+      counts.set(key, prev);
+    }
+    const total = $wishlist.length || 1;
+    return Array.from(counts.values())
+      .map((g) => ({ ...g, pct: (g.count / total) * 100 }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  });
+
+  function exportWishlist() {
+    const blob = new Blob([JSON.stringify($wishlist, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gamewish-wishlist.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * @param {Event} e
+   */
+  async function importWishlist(e) {
+    const input = /** @type {HTMLInputElement} */ (e.target);
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) return;
+      const valid = parsed.filter((g) => g && typeof g.id !== 'undefined' && g.name);
+      wishlist.update((list) => {
+        const ids = new Set(list.map((g) => g.id));
+        return [...list, ...valid.filter((g) => !ids.has(g.id))];
+      });
+    } catch (err) {
+      console.error('Import failed', err);
+    } finally {
+      input.value = '';
+    }
+  }
+
+  function clearWishlist() {
+    if (confirm('Limpar toda a wishlist?')) wishlist.set([]);
+  }
+
   /**
    * @param {any[]} gamesList
    */
@@ -214,22 +283,22 @@
 </script>
 
 <svelte:head>
-  <title>GameWishlist | Wishlist de jogos</title>
+  <title>Gamewish — sua wishlist de games</title>
   <meta name="description" content="Descubra jogos, pesquise por título e salve tudo em uma wishlist local com interface refinada." />
-  <meta property="og:title" content="GameWishlist | Wishlist de jogos" />
+  <meta property="og:title" content="Gamewish — sua wishlist de games" />
   <meta property="og:description" content="Descubra jogos, pesquise por título e salve tudo em uma wishlist local." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://gamewishlist.vercel.app/" />
-  <meta property="og:image" content="https://gamewishlist.vercel.app/logo.png" />
+  <meta property="og:image" content="https://gamewishlist.vercel.app/favicon-512.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="GameWishlist | Wishlist de jogos" />
+  <meta name="twitter:title" content="Gamewish — sua wishlist de games" />
   <meta name="twitter:description" content="Descubra jogos, pesquise por título e salve tudo em uma wishlist local." />
-  <meta name="twitter:image" content="https://gamewishlist.vercel.app/logo.png" />
+  <meta name="twitter:image" content="https://gamewishlist.vercel.app/favicon-512.png" />
   <script type="application/ld+json">
     {JSON.stringify({
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
-      name: 'GameWishlist',
+      name: 'Gamewish',
       description: 'Descubra jogos, pesquise por título e salve tudo em uma wishlist local.',
       url: 'https://gamewishlist.vercel.app',
       applicationCategory: 'GameApplication',
@@ -251,7 +320,17 @@
       wishlistCount={$wishlist.length}
       avgRating={getAverageRating(games)}
       onExplore={() => handleTabChange('explore')}
+      onWishlist={() => handleTabChange('wishlist')}
     />
+
+    <div id="catalogo" class="catalog-toolbar" aria-label="Resumo do catálogo">
+      <p class="toolbar-kicker">void · arcade · lime — catálogo RAWG ao vivo</p>
+      <p class="toolbar-count" aria-live="polite">
+        {#if loading}Sintonizando o arcade…
+        {:else if totalCount > 0}{totalCount.toLocaleString('pt-BR')} títulos · página {currentPage}
+        {:else}Catálogo pronto para explorar{/if}
+      </p>
+    </div>
 
     <GameGrid
       games={games}
@@ -271,22 +350,85 @@
   {:else}
     <section class="wishlist-container">
       <div class="wishlist-header">
+        <p class="cockpit-kicker">void · arcade — seu arsenal salvo</p>
         <h2>Minha Wishlist</h2>
-        <p>Seus jogos favoritos salvos no navegador.</p>
+        <p>Seus jogos favoritos, guardados no navegador e prontos para a próxima run.</p>
+        {#if $wishlist.length > 0}
+          <div class="dash-stats" role="list">
+            <div class="dash-stat" role="listitem">
+              <span class="dash-ico" aria-hidden="true">▣</span>
+              <span class="dash-label">Total</span>
+              <strong class="dash-value">{$wishlist.length}</strong>
+            </div>
+            <div class="dash-stat" role="listitem">
+              <span class="dash-ico" aria-hidden="true">★</span>
+              <span class="dash-label">Nota média</span>
+              <strong class="dash-value">{wishlistAvg} <small>★</small></strong>
+            </div>
+            <div class="dash-stat" role="listitem">
+              <span class="dash-ico" aria-hidden="true">◷</span>
+              <span class="dash-label">Horas totais</span>
+              <strong class="dash-value">{wishlistHours}<small>h</small></strong>
+            </div>
+          </div>
+
+          {#if genreMix.length > 0}
+            <div class="genre-mix" aria-label="Mix de gêneros da wishlist">
+              <span class="mix-kicker">mix de gêneros</span>
+              <div class="mix-bar">
+                {#each genreMix as g (g.name)}
+                  <span
+                    class="mix-seg"
+                    style="width: {g.pct}%; background: {g.color};"
+                    title="{g.name}: {g.count}"
+                  ></span>
+                {/each}
+              </div>
+              <div class="mix-legend">
+                {#each genreMix as g (g.name)}
+                  <span class="mix-item"><i style="background: {g.color}"></i>{g.name} · {g.count}</span>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
+          <div class="dash-actions">
+            <label class="dash-sort">Ordenar
+              <select bind:value={wishlistSort} aria-label="Ordenar wishlist">
+                <option value="name">Nome</option>
+                <option value="rating">Nota</option>
+                <option value="year">Ano</option>
+              </select>
+            </label>
+            <button class="btn-ghost sm" onclick={exportWishlist}>Exportar JSON</button>
+            <button class="btn-ghost sm" onclick={() => importInput?.click()}>Importar</button>
+            <input bind:this={importInput} type="file" accept="application/json" hidden onchange={importWishlist} />
+            <button class="btn-danger sm" onclick={clearWishlist}>Limpar tudo</button>
+          </div>
+        {/if}
       </div>
 
       {#if $wishlist.length === 0}
-        <div class="empty-state">
-          <div class="empty-icon">🎮</div>
-          <h3>Sua wishlist está vazia</h3>
-          <p>Abra a aba de exploração, escolha alguns jogos e volte para ver a coleção crescer.</p>
-          <button class="btn-start" onclick={() => handleTabChange('explore')}>
-            Começar Exploração
-          </button>
+        <div class="empty-state void-empty" role="status">
+          <div class="empty-orbit" aria-hidden="true">
+            <span class="orbit-ring"></span>
+            <span class="orbit-core">◍</span>
+            <span class="orbit-dot dot-a"></span>
+            <span class="orbit-dot dot-b"></span>
+          </div>
+          <p class="empty-kicker">wishlist · sinal fraco</p>
+          <h3>Nenhum cartucho guardado ainda</h3>
+          <p>Explore o catálogo, abra um destaque e salve os títulos que merecem uma segunda run.</p>
+          <div class="empty-actions">
+            <button class="btn-start" onclick={() => handleTabChange('explore')}>
+              Começar Exploração
+            </button>
+            <a class="btn-ghost" href="#catalogo" onclick={() => handleTabChange('explore')}>Ver destaques</a>
+          </div>
         </div>
       {:else}
         <GameGrid
-          games={$wishlist}
+          games={sortedWishlist}
           loading={false}
           error=""
           onGameDetails={handleGameDetails}
@@ -306,6 +448,35 @@
     width: min(1440px, calc(100% - 32px));
     margin: 0 auto;
     padding: 28px 0 80px;
+  }
+
+  .catalog-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 20px;
+    margin: 4px 0 16px;
+    padding: 14px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .toolbar-kicker {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--lime);
+  }
+
+  .toolbar-count {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.88rem;
   }
 
   .wishlist-container {
@@ -329,11 +500,134 @@
     color: var(--text);
   }
 
+  .cockpit-kicker {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--lime);
+  }
+
   .wishlist-header p {
     color: var(--text-muted);
     font-size: 1rem;
     margin: 0;
   }
+
+  .dash-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .dash-stat {
+    position: relative;
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-md);
+    background:
+      radial-gradient(240px 120px at 100% 0%, rgba(139, 92, 246, 0.12), transparent 70%),
+      rgba(6, 8, 14, 0.6);
+    padding: 14px 14px 12px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "ico label"
+      "ico value";
+    align-items: center;
+    gap: 0 10px;
+    overflow: hidden;
+    transition: border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  }
+  .dash-stat:hover { border-color: var(--lime); transform: translateY(-2px); }
+  .dash-ico {
+    grid-area: ico;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    background: rgba(215, 245, 66, 0.1);
+    border: 1px solid rgba(215, 245, 66, 0.28);
+    color: var(--lime);
+    font-size: 1.1rem;
+  }
+  .dash-label {
+    grid-area: label;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-muted);
+  }
+  .dash-value {
+    grid-area: value;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .dash-value small { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+
+  /* Mix de gêneros */
+  .genre-mix {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mix-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--violet);
+  }
+  .mix-bar {
+    display: flex;
+    height: 12px;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+  }
+  .mix-seg {
+    height: 100%;
+    transition: width var(--duration-normal) var(--ease-out);
+    box-shadow: inset 0 0 0 1px rgba(6, 8, 14, 0.4);
+  }
+  .mix-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+  }
+  .mix-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-soft);
+  }
+  .mix-item i {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+  .dash-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  .dash-sort { display: flex; gap: 8px; align-items: center; color: var(--text-muted); font-size: 0.85rem; }
+  .dash-sort select {
+    background: var(--surface-strong);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .btn-ghost.sm, .btn-danger.sm { padding: 8px 12px; font-size: 0.85rem; border-radius: 10px; cursor: pointer; }
+  .btn-danger.sm { border: 1px solid var(--pink); color: var(--pink); background: transparent; }
+  .btn-danger.sm:hover { background: rgba(255, 106, 168, 0.12); }
 
   .empty-state {
     display: flex;
@@ -345,10 +639,6 @@
     border-radius: var(--radius-xl);
     background: var(--surface);
     text-align: center;
-  }
-
-  .empty-icon {
-    font-size: 3.5rem;
   }
 
   .empty-state h3 {
@@ -366,20 +656,99 @@
 
   .btn-start {
     margin-top: 8px;
-    border: none;
-    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-    color: #051725;
+    border: 1px solid var(--lime);
+    background: var(--lime);
+    color: #101503;
     padding: 12px 18px;
     border-radius: var(--radius-lg);
     font-weight: 700;
     cursor: pointer;
     transition: all var(--duration-normal) var(--ease-in-out);
-    box-shadow: 0 8px 20px rgba(0, 217, 255, 0.2);
+    box-shadow: var(--shadow-lime);
   }
 
   .btn-start:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 30px rgba(0, 217, 255, 0.3);
+    box-shadow: var(--shadow-lime);
+  }
+
+  .void-empty {
+    position: relative;
+    overflow: hidden;
+    border-color: var(--border-accent);
+    background:
+      radial-gradient(420px 200px at 50% 0%, rgba(215, 245, 66, 0.12), transparent 65%),
+      var(--surface);
+  }
+
+  .empty-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--lime) !important;
+  }
+
+  .empty-orbit {
+    position: relative;
+    width: 112px;
+    height: 112px;
+    display: grid;
+    place-items: center;
+  }
+
+  .orbit-ring {
+    position: absolute;
+    inset: 8px;
+    border: 1px dashed rgba(215, 245, 66, 0.45);
+    border-radius: 50%;
+  }
+
+  .orbit-core {
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
+    border-radius: 18px;
+    background: var(--lime);
+    color: #101503;
+    font-size: 1.7rem;
+    transform: rotate(-6deg);
+    box-shadow: var(--shadow-lime);
+  }
+
+  .orbit-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .dot-a { top: 6px; right: 22px; background: var(--violet); }
+  .dot-b { bottom: 10px; left: 18px; background: var(--violet); }
+
+  .empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 18px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--lime);
+    color: var(--lime);
   }
 
   @media (max-width: 900px) {

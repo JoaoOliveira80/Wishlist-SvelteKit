@@ -19,6 +19,10 @@ const BASE = "/api/rawg";
  *   esrb_rating?: { id: number; slug: string; name: string };
  *   screenshots_count?: number;
  *   achievements_count?: number;
+ *   ratings_count?: number;
+ *   added?: number;
+ *   suggestions_count?: number;
+ *   clip?: { clip?: string; video?: string; preview?: string };
  *   reddit_url?: string;
  *   website?: string;
  * }} Game
@@ -53,6 +57,28 @@ const BASE = "/api/rawg";
  */
 
 const detailsCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000;
+
+/**
+ * @param {string} key
+ */
+function cacheGet(key) {
+  const entry = detailsCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.ts > CACHE_TTL) {
+    detailsCache.delete(key);
+    return undefined;
+  }
+  return entry.value;
+}
+
+/**
+ * @param {string} key
+ * @param {any} value
+ */
+function cacheSet(key, value) {
+  detailsCache.set(key, { value, ts: Date.now() });
+}
 
 /**
  * @param {string} path
@@ -113,6 +139,10 @@ function normalizeGamesResponse(data) {
     esrb_rating: game.esrb_rating,
     metacritic: game.metacritic,
     playtime: game.playtime,
+    ratings_count: game.ratings_count,
+    added: game.added,
+    suggestions_count: game.suggestions_count,
+    clip: game.clip,
   }));
 }
 
@@ -157,9 +187,8 @@ export async function getPopularGames(fetcher = fetch) {
  * @returns {Promise<Game>}
  */
 export async function getGameDetails(gameId, fetcher = fetch) {
-  if (detailsCache.has(gameId)) {
-    return detailsCache.get(gameId);
-  }
+  const cached = cacheGet(`details:${gameId}`);
+  if (cached) return cached;
 
   const response = await fetcher(buildUrl(`/games/${gameId}`));
   if (!response.ok) {
@@ -167,7 +196,7 @@ export async function getGameDetails(gameId, fetcher = fetch) {
   }
 
   const game = await response.json();
-  detailsCache.set(gameId, game);
+  cacheSet(`details:${gameId}`, game);
   return game;
 }
 
@@ -177,15 +206,87 @@ export async function getGameDetails(gameId, fetcher = fetch) {
  * @returns {Promise<Screenshot[]>}
  */
 export async function getGameScreenshots(gameId, fetcher = fetch) {
+  const cached = cacheGet(`screenshots:${gameId}`);
+  if (cached) return cached;
+
   const response = await fetcher(
-    buildUrl(`/games/${gameId}/screenshots`, { page_size: 5 }),
+    buildUrl(`/games/${gameId}/screenshots`, { page_size: 6 }),
   );
   if (!response.ok) {
     return [];
   }
 
   const data = await response.json();
-  return Array.isArray(data?.results) ? data.results : [];
+  const results = Array.isArray(data?.results) ? data.results : [];
+  cacheSet(`screenshots:${gameId}`, results);
+  return results;
+}
+
+/**
+ * @param {number | string} gameId
+ * @param {string} endpoint
+ * @param {any} [fetcher]
+ */
+async function fetchList(gameId, endpoint, fetcher = fetch) {
+  const key = `${endpoint}:${gameId}`;
+  const cached = cacheGet(key);
+  if (cached) return cached;
+  try {
+    const response = await fetcher(buildUrl(`/games/${gameId}/${endpoint}`, { page_size: 12 }));
+    if (!response.ok) return [];
+    const data = await response.json();
+    const results = Array.isArray(data?.results) ? data.results : [];
+    cacheSet(key, results);
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * DLCs / GOTY editions / additions
+ * @param {number | string} gameId
+ */
+export async function getGameAdditions(gameId, fetcher = fetch) {
+  return fetchList(gameId, 'additions', fetcher);
+}
+
+/**
+ * Same series / sequels / related
+ * @param {number | string} gameId
+ */
+export async function getGameSeries(gameId, fetcher = fetch) {
+  return fetchList(gameId, 'game-series', fetcher);
+}
+
+/**
+ * Store links (Steam, EGS, etc)
+ * @param {number | string} gameId
+ */
+export async function getGameStores(gameId, fetcher = fetch) {
+  const raw = await fetchList(gameId, 'stores', fetcher);
+  // normalize: { id, store_id, url, store: { name, slug, domain } }
+  return raw.map((/** @type {any} */ s) => ({
+    id: s.id ?? s.store_id ?? Math.random(),
+    url: s.url ?? '',
+    name: s.store?.name ?? s.store_id ?? 'Loja',
+    slug: s.store?.slug ?? '',
+    domain: s.store?.domain ?? '',
+  }));
+}
+
+/**
+ * Trailers / movies
+ * @param {number | string} gameId
+ */
+export async function getGameMovies(gameId, fetcher = fetch) {
+  const raw = await fetchList(gameId, 'movies', fetcher);
+  return raw.map((/** @type {any} */ m) => ({
+    id: m.id,
+    name: m.name ?? 'Trailer',
+    preview: m.preview ?? m.image ?? '',
+    video: m.data?.max ?? m.data?.['480'] ?? m.clip ?? '',
+  }));
 }
 
 /**

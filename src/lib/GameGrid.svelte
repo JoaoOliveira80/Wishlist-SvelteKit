@@ -75,6 +75,7 @@
 
   function getOrderingValue() {
     if (sortBy === 'metacritic') return '-metacritic';
+    if (sortBy === 'added') return '-added';
     if (sortBy === 'recent') return '-released';
     if (sortBy === 'updated') return '-updated';
     if (sortBy === 'alpha') return 'name';
@@ -97,6 +98,13 @@
     || selectedTags.length > 0
     || selectedParentPlatforms.length > 0
     || searchPrecise,
+  );
+
+  let totalPages = $derived(Math.max(1, Math.ceil((totalCount || 0) / (pageSize || 20))));
+  let rankBase = $derived(((currentPage || 1) - 1) * (pageSize || 20));
+  let shownCount = $derived(games?.length || 0);
+  let activeFilterCount = $derived(
+    selectedGenres.length + selectedTags.length + selectedParentPlatforms.length + (searchPrecise ? 1 : 0),
   );
 
   $effect(() => {
@@ -133,13 +141,13 @@
     selectedParentPlatforms = [];
     searchPrecise = false;
   }
-
-  let totalPages = $derived(Math.ceil(totalCount / pageSize));
 </script>
 
 <div class="game-grid-container">
   {#if showFilters}
-    <div class="filters-bar">
+    <div class="arcade-toolbar" aria-label="Controles da lista">
+      <span class="kicker kicker-filters">FILTROS {#if activeFilterCount}<em>// {activeFilterCount} ON</em>{/if}</span>
+      <div class="filters-bar">
       <GenreFilter
         genres={allGenres}
         {selectedGenres}
@@ -174,11 +182,13 @@
         />
       {/if}
 
+      <span class="kicker kicker-sort">ORDENAR</span>
       <div class="sort-control">
         <label for="sort-select">Ordenar por:</label>
         <div class="select-wrapper">
           <select id="sort-select" bind:value={sortBy}>
             <option value="rating">Avaliação</option>
+            <option value="added">Populares</option>
             <option value="metacritic">Metacritic</option>
             <option value="recent">Lançamento</option>
             <option value="updated">Atualização</option>
@@ -192,10 +202,14 @@
         <input id="precise-search" type="checkbox" bind:checked={searchPrecise} />
         Busca precisa
       </label>
+      </div>
+      <span class="kicker kicker-page">PÁGINA // {currentPage}/{totalPages}</span>
+    </div>
 
-      <!-- <div class="filter-info">
-        {totalCount} jogos found
-      </div> -->
+    <div class="count-strip" aria-live="polite">
+      <span class="count-chip"><strong>{shownCount}</strong> nesta página</span>
+      <span class="count-dot" aria-hidden="true"></span>
+      <span class="count-chip ghost"><strong>{totalCount}</strong> no catálogo</span>
     </div>
 
     {#if hasActiveFilters}
@@ -231,7 +245,8 @@
 
   <div class="status-container" aria-live="polite">
     {#if loading}
-      <div in:fade={{ duration: 200 }}>
+      <div class="arcade-loading" in:fade={{ duration: 200 }}>
+        <span class="kicker kicker-load">CARREGANDO FICHAS…</span>
         <SkeletonCard count={12} />
       </div>
     {:else if error}
@@ -243,17 +258,22 @@
         </button>
       </div>
     {:else if games.length === 0}
-      <div class="empty-state" in:fade={{ duration: 300 }}>
+      <div class="empty-state empty-arcade" in:fade={{ duration: 300 }}>
+        <span class="empty-kicker">SEM FICHAS // INSERT COIN</span>
         <span class="empty-icon">
           <Gamepad2 size={40} />
         </span>
+        <p class="empty-title">Nada por aqui… ainda.</p>
         <p class="empty-text">{selectedGenres.length > 0 ? 'Nenhum jogo encontrado para esses filtros.' : 'Nenhum jogo para exibir.'}</p>
+        <button class="retry-btn retry-lime" onclick={clearAllFilters}>
+          Limpar filtros e continuar jogando
+        </button>
       </div>
     {:else}
       <div class="grid">
         {#each games as game, i (game.id)}
           <div class="grid-item" in:fly={{ y: 20, duration: 300, delay: i * 30 }}>
-            <GameCardNew {game} onDetails={onGameDetails} />
+            <GameCardNew game={game} rank={rankBase + i + 1} onDetails={onGameDetails} />
           </div>
         {/each}
       </div>
@@ -289,22 +309,100 @@
   .game-grid-container {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
+  }
+
+  .arcade-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(420px 120px at 8% 0%, rgba(215, 245, 66, 0.08), transparent 65%),
+      radial-gradient(420px 140px at 92% 100%, rgba(139, 92, 246, 0.14), transparent 65%),
+      #0e1422;
+  }
+
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--lime);
+    white-space: nowrap;
+  }
+
+  .kicker em {
+    font-style: normal;
+    color: var(--violet);
+  }
+
+  .kicker-sort {
+    color: var(--violet);
+    margin-left: 4px;
+  }
+
+  .kicker-page {
+    margin-left: auto;
+    color: var(--text-soft);
+  }
+
+  .kicker-load {
+    display: inline-flex;
+    margin-bottom: 10px;
   }
 
   .filters-bar {
-    position: relative;
-    z-index: 20;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-lg);
-    background: var(--surface);
-    backdrop-filter: blur(10px);
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
     flex-wrap: wrap;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .count-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .count-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    background: rgba(215, 245, 66, 0.08);
+    border: 1px solid rgba(215, 245, 66, 0.28);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text-soft);
+  }
+
+  .count-chip strong {
+    color: var(--lime);
+  }
+
+  .count-chip.ghost {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: rgba(139, 92, 246, 0.32);
+  }
+
+  .count-chip.ghost strong {
+    color: var(--violet);
+  }
+
+  .count-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--violet);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.85);
   }
 
   .sort-control {
@@ -329,26 +427,28 @@
 
   .select-wrapper select {
     padding: 8px 12px;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
     background: var(--surface-strong);
     color: var(--text);
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-in-out);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      background var(--duration-fast) var(--ease-out);
     padding-right: 28px;
     appearance: none;
   }
 
   .select-wrapper select:hover {
-    border-color: var(--border-accent);
+    border-color: rgba(215, 245, 66, 0.45);
     background: var(--surface-hover);
   }
 
   .select-wrapper select:focus {
     outline: none;
-    border-color: var(--accent-bright);
-    box-shadow: 0 0 0 2px rgba(102, 192, 244, 0.1);
+    border-color: var(--lime);
+    box-shadow: 0 0 0 2px rgba(215, 245, 66, 0.18);
   }
 
   :global(.select-icon) {
@@ -377,7 +477,7 @@
   .precision-control input {
     width: 16px;
     height: 16px;
-    accent-color: var(--accent-bright);
+    accent-color: var(--lime);
     cursor: pointer;
   }
 
@@ -407,27 +507,27 @@
   }
 
   .filter-chip {
-    color: var(--text-soft);
-    background: rgba(75, 163, 208, 0.08);
-    border-color: rgba(102, 192, 244, 0.2);
+    color: var(--lime);
+    background: rgba(215, 245, 66, 0.08);
+    border-color: rgba(215, 245, 66, 0.3);
   }
 
   .filter-chip:hover {
-    border-color: var(--accent-bright);
-    color: var(--accent-bright);
-    background: rgba(102, 192, 244, 0.15);
+    border-color: var(--lime);
+    color: #101503;
+    background: var(--lime);
   }
 
   .clear-all {
-    color: var(--danger);
-    background: rgba(231, 76, 60, 0.1);
-    border-color: rgba(231, 76, 60, 0.3);
+    color: var(--pink);
+    background: rgba(255, 106, 168, 0.08);
+    border-color: rgba(255, 106, 168, 0.32);
   }
 
   .clear-all:hover {
-    border-color: rgba(231, 76, 60, 0.6);
-    background: rgba(231, 76, 60, 0.2);
-    color: #ff6b6b;
+    border-color: var(--pink);
+    background: rgba(255, 106, 168, 0.16);
+    color: var(--pink);
   }
 
   .error-state,
@@ -446,33 +546,62 @@
     font-size: 0.95rem;
   }
 
+  .empty-arcade {
+    border: 1px dashed rgba(215, 245, 66, 0.35);
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(420px 180px at 50% 0%, rgba(215, 245, 66, 0.1), transparent 65%),
+      #0e1422;
+    padding: 34px 24px;
+  }
+
+  .empty-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--lime);
+  }
+
+  .empty-title {
+    font-family: var(--font-head);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text) !important;
+  }
+
   .error-icon,
   .empty-icon {
-    color: var(--text-muted);
-    opacity: 0.5;
+    color: var(--violet);
+    opacity: 0.9;
   }
 
   .error-state {
-    color: var(--danger);
+    color: var(--pink);
   }
 
   .retry-btn {
     margin-top: 8px;
     padding: 10px 20px;
     border-radius: var(--radius-md);
-    background: var(--danger);
-    color: #ffffff;
+    background: var(--pink);
+    color: #16060f;
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
     border: none;
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
   }
 
   .retry-btn:hover {
-    background: #ff6b6b;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+    box-shadow: 0 8px 22px rgba(255, 106, 168, 0.28);
+  }
+
+  .retry-lime {
+    background: var(--lime);
+    color: #101503;
+    box-shadow: var(--shadow-lime);
   }
 
   .grid {
@@ -498,6 +627,15 @@
       gap: 14px;
     }
 
+    .arcade-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .kicker-page {
+      margin-left: 0;
+    }
+
     .filters-bar {
       flex-direction: column;
       align-items: stretch;
@@ -510,6 +648,11 @@
     .active-filters {
       justify-content: center;
     }
+
+    .count-strip {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
   }
 
   @media (max-width: 640px) {
@@ -518,8 +661,8 @@
       gap: 12px;
     }
 
-    .filters-bar {
-      padding: 12px 16px;
+    .arcade-toolbar {
+      padding: 12px;
       gap: 10px;
     }
 
@@ -536,32 +679,35 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 24px;
-    padding: 24px 20px;
+    gap: 16px;
+    padding: 12px 14px;
     margin-top: 20px;
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background: var(--surface);
+    border-radius: var(--radius-pill);
+    background: #0e1422;
   }
 
   .pagination-btn {
-    padding: 10px 16px;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-md);
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
     background: var(--surface-strong);
     color: var(--text);
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-in-out);
+    transition:
+      background var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
   }
 
   .pagination-btn:not(:disabled):hover {
-    border-color: var(--accent-bright);
-    background: var(--surface-hover);
-    color: var(--accent-bright);
+    border-color: var(--lime);
+    background: var(--lime);
+    color: #101503;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 192, 244, 0.15);
   }
 
   .pagination-btn:disabled {

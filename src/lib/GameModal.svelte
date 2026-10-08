@@ -1,7 +1,7 @@
 <script>
   import { X, ExternalLink, Check } from 'lucide-svelte';
   import { toggleWishlist, isInWishlist, wishlist } from './wishlist.js';
-  import { getGameDetails, getGameScreenshots } from './api.js';
+  import { getGameDetails, getGameScreenshots, getGameAdditions, getGameStores } from './api.js';
 
   /**
    * @typedef {import('./api.js').Game} Game
@@ -22,6 +22,10 @@
   let fullDetails = $state(null);
   /** @type {import('./api.js').Screenshot[]} */
   let screenshots = $state([]);
+  /** @type {any[]} */
+  let additions = $state([]);
+  /** @type {any[]} */
+  let stores = $state([]);
   let loadingDetails = $state(false);
   let currentGameId = $state(/** @type {number | null} */ (null));
   let requestToken = 0;
@@ -72,9 +76,11 @@
     const token = ++requestToken;
     loadingDetails = true;
     try {
-      const [details, shots] = await Promise.all([
+      const [details, shots, dlcs, shop] = await Promise.all([
         getGameDetails(game.id),
-        getGameScreenshots(game.id)
+        getGameScreenshots(game.id).catch(() => []),
+        getGameAdditions(game.id).catch(() => []),
+        getGameStores(game.id).catch(() => [])
       ]);
 
       if (token !== requestToken) {
@@ -83,6 +89,8 @@
 
       fullDetails = details;
       screenshots = shots;
+      additions = dlcs;
+      stores = shop;
     } catch (error) {
       console.error('Failed to load game details:', error);
     } finally {
@@ -98,6 +106,8 @@
       activeTab = 'overview';
       fullDetails = null;
       screenshots = [];
+      additions = [];
+      stores = [];
       loadingDetails = false;
       requestToken++;
       return;
@@ -108,6 +118,8 @@
       activeTab = 'overview';
       fullDetails = null;
       screenshots = [];
+      additions = [];
+      stores = [];
     }
 
     void loadGameDetails();
@@ -151,20 +163,24 @@
             <p class="modal-genres">{formatGenres(game.genres)}</p>
           {/if}
 
-          <div class="modal-quickmeta">
+          <div class="modal-quickmeta hud-mini">
             <div class="qmeta-item">
-              <span class="qmeta-label">Rating</span>
+              <span class="qmeta-label">Nota</span>
               <strong class="qmeta-value">{game.rating ? game.rating.toFixed(1) : '—'} ★</strong>
             </div>
             {#if fullDetails?.metacritic}
               <div class="qmeta-item">
-                <span class="qmeta-label">Metacritic</span>
-                <strong class="qmeta-value" style="color: {fullDetails.metacritic >= 75 ? '#10b981' : fullDetails.metacritic >= 50 ? '#f59e0b' : '#ef4444'}">{fullDetails.metacritic}</strong>
+                <span class="qmeta-label">Meta</span>
+                <strong class="qmeta-value hud-meta {fullDetails.metacritic >= 75 ? 'meta-high' : fullDetails.metacritic >= 50 ? 'meta-mid' : 'meta-low'}">{fullDetails.metacritic}</strong>
               </div>
             {/if}
             <div class="qmeta-item">
-              <span class="qmeta-label">Lançado</span>
-              <strong class="qmeta-value">{game.released ? game.released.split('-')[0] : 'TBA'}</strong>
+              <span class="qmeta-label">Tempo</span>
+              <strong class="qmeta-value">{fullDetails?.playtime ? `${fullDetails.playtime}h` : '—'}</strong>
+            </div>
+            <div class="qmeta-item">
+              <span class="qmeta-label">Conq.</span>
+              <strong class="qmeta-value">{fullDetails?.achievements_count ?? '—'}</strong>
             </div>
           </div>
         </div>
@@ -195,6 +211,13 @@
             Galeria
           </button>
         {/if}
+        <button
+          class="modal-tab"
+          class:active={activeTab === 'extras'}
+          onclick={() => (activeTab = 'extras')}
+        >
+          Extras
+        </button>
       </div>
 
       <!-- Body -->
@@ -270,7 +293,7 @@
             {#if fullDetails?.metacritic}
               <div class="spec-item">
                 <span class="spec-label">Pontuação Metacritic</span>
-                <strong class="spec-value" style="color: {fullDetails.metacritic >= 75 ? '#10b981' : fullDetails.metacritic >= 50 ? '#f59e0b' : '#ef4444'}">{fullDetails.metacritic}/100</strong>
+                <strong class="spec-value {fullDetails.metacritic >= 75 ? 'meta-high' : fullDetails.metacritic >= 50 ? 'meta-mid' : 'meta-low'}">{fullDetails.metacritic}/100</strong>
               </div>
             {/if}
 
@@ -306,6 +329,32 @@
                 loading="lazy"
               />
             {/each}
+          </div>
+        {:else if activeTab === 'extras'}
+          <div class="tab-content extras-mini">
+            {#if additions.length > 0}
+              <h3>DLCs ({additions.length})</h3>
+              <div class="mini-list">
+                {#each additions.slice(0, 4) as dlc (dlc.id)}
+                  <span class="mini-chip">{dlc.name}</span>
+                {/each}
+              </div>
+            {/if}
+            {#if stores.length > 0}
+              <h3>Lojas</h3>
+              <div class="mini-list">
+                {#each stores.slice(0, 6) as st (st.id)}
+                  {#if st.url}
+                    <a class="store-link" href={st.url} target="_blank" rel="noopener">{st.name} ↗</a>
+                  {:else}
+                    <span class="mini-chip">{st.name}</span>
+                  {/if}
+                {/each}
+              </div>
+            {/if}
+            {#if additions.length === 0 && stores.length === 0}
+              <p class="muted">Sem extras disponíveis.</p>
+            {/if}
           </div>
         {/if}
       </div>
@@ -383,10 +432,10 @@
     position: absolute;
     inset: 0;
     background: linear-gradient(
-      135deg,
-      rgba(27, 40, 56, 0.98) 0%,
-      rgba(27, 40, 56, 0.85) 50%,
-      rgba(27, 40, 56, 0.98) 100%
+      180deg,
+      rgba(6, 8, 14, 0.72) 0%,
+      rgba(6, 8, 14, 0.88) 55%,
+      rgba(6, 8, 14, 0.96) 100%
     );
   }
 
@@ -429,9 +478,9 @@
   }
 
   .modal-close button:hover {
-    border-color: var(--accent-bright);
-    color: var(--accent-bright);
-    background: rgba(102, 192, 244, 0.15);
+    border-color: var(--lime);
+    color: var(--lime);
+    background: rgba(215, 245, 66, 0.12);
   }
 
   .modal-header {
@@ -471,13 +520,7 @@
     gap: 8px;
   }
 
-  .modal-title {
-    margin: 0;
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: var(--text);
-    font-family: "Space Grotesk", sans-serif;
-  }
+  .modal-title { margin: 0; font-size: 1.6rem; font-weight: 700; color: var(--text-strong); font-family: var(--font-display); }
 
   .modal-genres {
     margin: 0;
@@ -506,11 +549,11 @@
     font-weight: 600;
   }
 
-  .qmeta-value {
-    font-size: 0.95rem;
-    color: var(--text);
-    font-family: "Space Grotesk", sans-serif;
-  }
+  .qmeta-value { font-size: 0.95rem; color: var(--text); font-family: var(--font-head); }
+
+  .qmeta-value.meta-high, .spec-value.meta-high { color: var(--lime); }
+  .qmeta-value.meta-mid, .spec-value.meta-mid { color: var(--gold); }
+  .qmeta-value.meta-low, .spec-value.meta-low { color: var(--pink); }
 
   .modal-tabs {
     display: grid;
@@ -533,12 +576,12 @@
 
   .modal-tab:hover {
     color: var(--text);
-    background: rgba(102, 192, 244, 0.05);
+    background: rgba(215, 245, 66, 0.06);
   }
 
   .modal-tab.active {
-    color: var(--accent-bright);
-    border-bottom-color: var(--accent-bright);
+    color: var(--lime);
+    border-bottom-color: var(--lime);
   }
 
   .modal-body {
@@ -556,14 +599,7 @@
     padding: 40px 20px;
   }
 
-  .loader {
-    width: 40px;
-    height: 40px;
-    border: 3px solid rgba(102, 192, 244, 0.2);
-    border-top-color: var(--accent-bright);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
+  .loader { width: 40px; height: 40px; border: 3px solid rgba(215, 245, 66, 0.2); border-top-color: var(--lime); border-radius: 50%; animation: spin 0.8s linear infinite; }
 
   @keyframes spin {
     to { transform: rotate(360deg); }
@@ -616,15 +652,7 @@
     gap: 12px;
   }
 
-  .spec-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px;
-    border-radius: var(--radius-md);
-    background: rgba(102, 192, 244, 0.05);
-    border: 1px solid var(--border);
-  }
+  .spec-item { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--radius-md); background: rgba(215, 245, 66, 0.05); border: 1px solid var(--border); }
 
   .spec-item.full-width {
     grid-column: 1 / -1;
@@ -638,16 +666,11 @@
     font-weight: 600;
   }
 
-  .spec-value {
-    font-size: 1rem;
-    color: var(--text);
-    font-family: "Space Grotesk", sans-serif;
-    word-break: break-word;
-  }
+  .spec-value { font-size: 1rem; color: var(--text); font-family: var(--font-head); word-break: break-word; }
 
   .spec-link {
     font-size: 0.95rem;
-    color: var(--accent-bright);
+    color: var(--lime-soft);
     text-decoration: none;
     font-weight: 600;
     transition: all var(--duration-fast) var(--ease-in-out);
@@ -657,7 +680,7 @@
   }
 
   .spec-link:hover {
-    color: var(--accent-hover);
+    color: var(--lime);
     text-decoration: underline;
   }
 
@@ -679,6 +702,31 @@
 
   .screenshot:hover {
     transform: scale(1.03);
+  }
+
+  .hud-mini { grid-template-columns: repeat(4, 1fr); }
+  .hud-meta.meta-high { color: var(--lime); }
+  .hud-meta.meta-mid { color: var(--gold); }
+  .hud-meta.meta-low { color: var(--pink); }
+  .muted { color: var(--text-muted); }
+  .extras-mini { display: flex; flex-direction: column; gap: 10px; }
+  .mini-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .mini-chip {
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    color: var(--text);
+    background: var(--surface-strong);
+  }
+  .store-link {
+    border: 1px solid var(--lime);
+    color: var(--lime);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
   }
 
   .modal-footer {
@@ -710,7 +758,7 @@
   .btn-modal-close:hover {
     background: var(--surface-strong);
     border-color: var(--border-accent);
-    color: var(--accent-bright);
+    color: var(--lime);
   }
 
   .btn-modal-wishlist {
@@ -731,10 +779,10 @@
   }
 
   .btn-modal-wishlist.added {
-    background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 4px 12px rgba(143, 185, 70, 0.3);
+    background: var(--lime);
+    color: #101503;
+    border: 1px solid var(--lime);
+    box-shadow: var(--shadow-lime);
   }
 
   @media (max-width: 640px) {

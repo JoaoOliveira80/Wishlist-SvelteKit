@@ -1,4 +1,5 @@
 <script>
+  /** @type {{ src?: string; alt?: string; className?: string; loading?: 'lazy' | 'eager'; aspectRatio?: string | null }} */
   let {
     src = '',
     alt = '',
@@ -40,7 +41,7 @@
   .optimized-image {
     position: relative;
     overflow: hidden;
-    background: var(--surface-strong);
+    background: #131a2e;
   }
 
   .placeholder {
@@ -48,9 +49,9 @@
     inset: 0;
     background: linear-gradient(
       90deg,
-      var(--surface-strong) 0%,
-      var(--surface-hover) 50%,
-      var(--surface-strong) 100%
+      #131a2e 0%,
+      #1f2a4a 50%,
+      #131a2e 100%
     );
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
@@ -63,21 +64,29 @@
 
   img {
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: cover;
     opacity: 0;
-    transition: opacity 0.3s ease-out;
+    filter: blur(12px);
+    transform: scale(1.04);
+    transition:
+      opacity 0.5s var(--ease-out),
+      filter 0.6s var(--ease-out),
+      transform 0.6s var(--ease-out);
   }
 
   img.visible {
     opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+
+  .optimized-image[style*="aspect-ratio"] {
+    aspect-ratio: 16 / 10;
   }
 
   .optimized-image[style*="aspect-ratio"] img {
     height: 100%;
     object-fit: cover;
-  }
-
-  img.visible {
-    opacity: 1;
   }
 </style>

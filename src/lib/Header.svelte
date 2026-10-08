@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Search, Heart, Compass } from 'lucide-svelte';
+  import { Search, Heart, Compass, X } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { wishlist } from './wishlist.js';
@@ -28,301 +28,62 @@
   }
 
   function handleSearchInput(e: Event & { currentTarget: EventTarget & HTMLInputElement }) {
-    const target = e.target as HTMLInputElement;
-    onSearch(target.value);
+    const t = e.target as HTMLInputElement;
+    onSearch(t.value);
   }
+  function clearSearch() { onSearch(''); }
 </script>
 
 <header class="header">
   <div class="header-inner">
-    <div class="brand">
-      <img src="/logo.png" alt="GameWishlist Logo" class="logo" />
-      <div class="brand-text">
-        <span class="brand-name">GameWishlist</span>
-        <span class="brand-sub">Sua lista de desejos</span>
-      </div>
-    </div>
-
+    <button class="brand" onclick={() => handleTabChange('explore')} aria-label="GameWish — explorar">
+      <span class="brand-mark" aria-hidden="true"><img src="/logo.svg" alt="" width="28" height="28" /></span>
+      <span class="brand-text"><span class="brand-name">GAME<em>WISH</em></span><span class="brand-sub">sua coleção viva</span></span>
+    </button>
     <div class="search-wrap" class:focused={searchFocused}>
-      <Search class="search-icon" size={16} />
-      <input
-        type="text"
-        placeholder="Buscar jogos..."
-        aria-label="Buscar jogos"
-        value={query}
-        oninput={handleSearchInput}
-        onfocus={() => searchFocused = true}
-        onblur={() => searchFocused = false}
-      />
+      <Search class="search-icon" size={17} />
+      <input type="text" placeholder="Busque por título… ex: Elden Ring" aria-label="Buscar jogos" value={query} oninput={handleSearchInput} onfocus={() => searchFocused = true} onblur={() => searchFocused = false} />
+      {#if query}<button class="search-clear" onclick={clearSearch} aria-label="Limpar busca"><X size={14} /></button>{:else}<kbd class="search-kbd">/</kbd>{/if}
     </div>
-
-    <nav class="nav">
-      <button class="nav-btn" class:active={activeTab === 'explore'} aria-current={activeTab === 'explore' ? 'page' : undefined} onclick={() => handleTabChange('explore')}>
-        <Compass class="nav-icon" size={18} />
-        <span class="nav-label">Explorar</span>
-      </button>
-      <button class="nav-btn" class:active={activeTab === 'wishlist'} aria-current={activeTab === 'wishlist' ? 'page' : undefined} onclick={() => handleTabChange('wishlist')}>
-        <Heart class="nav-icon" size={18} />
-        <span class="nav-label">Wishlist</span>
-        {#if displayedWishlistCount > 0}
-          <span class="badge">{displayedWishlistCount}</span>
-        {/if}
-      </button>
+    <nav class="nav" aria-label="Navegação principal">
+      <button class="nav-btn" class:active={activeTab === 'explore'} onclick={() => handleTabChange('explore')}><Compass class="nav-icon" size={17} /><span class="nav-label">Explorar</span></button>
+      <button class="nav-btn wishlist-btn" class:active={activeTab === 'wishlist'} onclick={() => handleTabChange('wishlist')}><Heart class="nav-icon" size={17} /><span class="nav-label">Wishlist</span>{#if displayedWishlistCount > 0}<span class="badge">{displayedWishlistCount}</span>{/if}</button>
     </nav>
   </div>
 </header>
 
 <style>
-  .header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(15, 20, 25, 0.92);
-    border-bottom: 1px solid var(--border-strong);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(16px) saturate(1.4);
-  }
+  .header { position: sticky; top: 0; z-index: 100; background: rgba(6,8,14,0.78); border-bottom: 1px solid var(--border); backdrop-filter: blur(18px) saturate(1.4); }
+  .header-inner { display: flex; align-items: center; gap: 18px; padding: 12px clamp(16px,4vw,32px); max-width: 1440px; margin: 0 auto; }
+  .brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; background: none; border: none; cursor: pointer; color: inherit; padding: 2px 4px 2px 0; }
+  .brand-mark { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; color: #0d1203; background: linear-gradient(135deg,var(--lime-soft),var(--lime) 60%,#a8d61f); box-shadow: var(--shadow-lime); transform: rotate(-4deg); transition: transform .25s var(--ease-spring); overflow: hidden; padding: 3px; }
+  .brand-mark img { width: 100%; height: 100%; border-radius: 11px; display: block; }
+  .brand:hover .brand-mark { transform: rotate(4deg) scale(1.05); }
+  .brand-text { display: flex; flex-direction: column; line-height: 1; gap: 3px; text-align: left; }
+  .brand-name { font-family: var(--font-display); font-weight: 800; font-size: 1rem; letter-spacing: .04em; color: var(--text-strong); }
+  .brand-name em { font-style: normal; color: var(--lime); }
+  .brand-sub { font-size: .66rem; letter-spacing: .18em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; }
 
-  .header-inner {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 10px clamp(16px, 4vw, 32px);
-    max-width: 1440px;
-    margin: 0 auto;
-  }
+  .search-wrap { flex: 1; max-width: 560px; margin-inline: auto; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 14px; border-radius: var(--radius-pill); background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); transition: all var(--duration-normal) var(--ease-out); }
+  .search-wrap.focused { background: rgba(255,255,255,0.08); border-color: var(--lime); box-shadow: 0 0 0 4px rgba(215,245,66,0.12); }
+  :global(.search-icon) { color: var(--text-muted); flex-shrink: 0; }
+  .search-wrap.focused :global(.search-icon) { color: var(--lime); }
+  .search-wrap input { flex: 1; border: none; background: transparent; color: var(--text); font-size: .9rem; outline: none; font-family: inherit; min-width: 0; }
+  .search-wrap input::placeholder { color: var(--text-muted); }
+  .search-kbd { font-family: var(--font-mono); font-size: .72rem; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px; padding: 2px 7px; background: rgba(255,255,255,.04); }
+  .search-clear { border: 1px solid var(--border-strong); background: rgba(255,255,255,.06); color: var(--text-soft); border-radius: 999px; width: 24px; height: 24px; display: grid; place-items: center; cursor: pointer; }
+  .search-clear:hover { color: #0d1203; background: var(--lime); border-color: var(--lime); }
 
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-    cursor: pointer;
-    transition: opacity var(--duration-fast) var(--ease-out);
-  }
+  .nav { display: flex; gap: 8px; flex-shrink: 0; }
+  .nav-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: var(--radius-pill); border: 1px solid var(--border-strong); background: rgba(255,255,255,.04); color: var(--text-soft); font-size: .85rem; font-weight: 700; cursor: pointer; transition: all var(--duration-normal) var(--ease-out); font-family: inherit; }
+  .nav-btn:hover { border-color: var(--lime); color: var(--text-strong); transform: translateY(-1px); }
+  .nav-btn.active { background: var(--lime); border-color: var(--lime); color: #101503; box-shadow: var(--shadow-lime); }
+  .wishlist-btn.active :global(.nav-icon) { fill: currentColor; }
+  :global(.nav-icon) { display: flex; align-items: center; }
+  .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: #101503; color: var(--lime); font-size: .72rem; font-weight: 800; font-family: var(--font-mono); }
+  .nav-btn:not(.active) .badge { background: var(--lime); color: #101503; }
 
-  .brand:hover {
-    opacity: 0.85;
-  }
-
-  .logo {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
-    object-fit: contain;
-    flex-shrink: 0;
-    transition: transform var(--duration-fast) var(--ease-out);
-    filter: drop-shadow(0 2px 8px rgba(102, 192, 244, 0.3));
-  }
-
-  .brand:hover .logo {
-    transform: scale(1.08);
-  }
-
-  .brand-text {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .brand-name {
-    font-family: "Space Grotesk", sans-serif;
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: var(--text-strong);
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-  }
-
-  .brand-sub {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    font-weight: 500;
-    letter-spacing: 0.02em;
-  }
-
-  .search-wrap {
-    flex: 1;
-    max-width: 400px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 16px;
-    border-radius: var(--radius-lg);
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    transition: all var(--duration-normal) var(--ease-out);
-  }
-
-  .search-wrap:hover {
-    border-color: var(--border-accent);
-    background: var(--surface-hover);
-  }
-
-  .search-wrap.focused {
-    border-color: var(--accent-bright);
-    background: var(--surface-active);
-    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.12);
-  }
-
-  :global(.search-icon) {
-    color: var(--text-muted);
-    flex-shrink: 0;
-    opacity: 0.7;
-    transition: opacity var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-  }
-
-  .search-wrap.focused :global(.search-icon) {
-    color: var(--accent-bright);
-    opacity: 1;
-  }
-
-  .search-wrap input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    color: var(--text);
-    font-size: 0.88rem;
-    outline: none;
-    font-family: inherit;
-  }
-
-  .search-wrap input::placeholder {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-  }
-
-  .nav {
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-
-  .nav-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 18px;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-strong);
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-out);
-    position: relative;
-    font-family: inherit;
-  }
-
-  .nav-btn:hover {
-    border-color: var(--border-accent);
-    color: var(--text);
-    background: var(--surface);
-    transform: translateY(-1px);
-  }
-
-  .nav-btn.active {
-    background: linear-gradient(135deg, var(--accent-bright) 0%, var(--accent) 100%);
-    border-color: var(--accent-bright);
-    color: #ffffff;
-    box-shadow: 0 4px 16px rgba(102, 192, 244, 0.25);
-  }
-
-  :global(.nav-icon) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .nav-label {
-    display: inline;
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: var(--warning);
-    color: #ffffff;
-    font-size: 0.7rem;
-    font-weight: 700;
-    margin-left: 4px;
-    animation: scale-in 0.2s var(--ease-out);
-  }
-
-  .nav-btn.active .badge {
-    background: rgba(255, 255, 255, 0.3);
-  }
-
-
-  @keyframes scale-in {
-    from { transform: scale(0); }
-    to { transform: scale(1); }
-  }
-
-  @media (max-width: 900px) {
-    .header-inner {
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    .search-wrap {
-      max-width: 100%;
-      order: 3;
-      flex-basis: calc(100% - 120px);
-    }
-  }
-
-  @media (max-width: 768px) {
-    .header-inner {
-      gap: 12px;
-      padding: 10px clamp(12px, 3vw, 24px);
-    }
-
-    .brand-text {
-      display: none;
-    }
-
-    .logo {
-      width: 36px;
-      height: 36px;
-    }
-
-    .search-wrap {
-      max-width: 100%;
-      order: 3;
-      flex-basis: 100%;
-      padding: 8px 14px;
-    }
-
-    .nav {
-      gap: 4px;
-    }
-
-    .nav-btn {
-      padding: 8px 14px;
-      font-size: 0.82rem;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .nav-btn {
-      padding: 8px 12px;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .nav-label {
-      display: none;
-    }
-
-    .nav-btn {
-      padding: 8px 10px;
-    }
-  }
+  @media (max-width: 900px) { .header-inner { flex-wrap: wrap; gap: 12px; } .search-wrap { max-width: 100%; order: 3; flex-basis: 100%; } }
+  @media (max-width: 640px) { .brand-sub { display: none; } .brand-mark { width: 38px; height: 38px; border-radius: 12px; } .nav-btn { padding: 9px 14px; font-size: .8rem; } .search-kbd { display: none; } }
+  @media (max-width: 480px) { .nav-label { display: none; } .nav-btn { padding: 9px 12px; } }
 </style>

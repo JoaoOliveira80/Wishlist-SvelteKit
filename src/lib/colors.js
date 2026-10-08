@@ -1,21 +1,32 @@
 /**
  * Mapeamento de cores para gêneros de jogos
  * @typedef {{ light: string; dark: string; name: string }} GenreColor
- * @type {Record<string, GenreColor>}
  */
+/** @type {Record<string, string>} */
+export const VOID_ARCADE = {
+  lime: '#d7f542',
+  limeSoft: '#e6ff70',
+  violet: '#8b5cf6',
+  violetSoft: '#a78bfa',
+  pink: '#ff6aa8',
+  gold: '#ffb224',
+  void: '#06080e',
+};
+
+/** @type {Record<string, import('./colors.js').GenreColor>} */
 export const genreColorMap = {
-  action: { light: "#ff6b35", dark: "#ff8c57", name: "--genre-action" },
-  rpg: { light: "#a855f7", dark: "#c084fc", name: "--genre-rpg" },
-  strategy: { light: "#ef4444", dark: "#f87171", name: "--genre-strategy" },
-  adventure: { light: "#06b6d4", dark: "#22d3ee", name: "--genre-adventure" },
-  puzzle: { light: "#f59e0b", dark: "#fbbf24", name: "--genre-puzzle" },
-  shooter: { light: "#8b5cf6", dark: "#a78bfa", name: "--genre-shooter" },
-  sports: { light: "#10b981", dark: "#34d399", name: "--genre-sports" },
-  racing: { light: "#ec4899", dark: "#f472b6", name: "--genre-racing" },
-  indie: { light: "#06b6d4", dark: "#22d3ee", name: "--genre-indie" },
-  simulation: { light: "#14b8a6", dark: "#2dd4bf", name: "--genre-simulation" },
-  casual: { light: "#f59e0b", dark: "#fbbf24", name: "--genre-puzzle" },
-  educational: { light: "#10b981", dark: "#34d399", name: "--genre-sports" },
+  action: { light: '#d7f542', dark: '#e6ff70', name: '--genre-action' },
+  rpg: { light: '#8b5cf6', dark: '#a78bfa', name: '--genre-rpg' },
+  strategy: { light: '#8b5cf6', dark: '#c4b5fd', name: '--genre-strategy' },
+  adventure: { light: '#a78bfa', dark: '#c4b5fd', name: '--genre-adventure' },
+  puzzle: { light: '#d7f542', dark: '#e6ff70', name: '--genre-puzzle' },
+  shooter: { light: '#8b5cf6', dark: '#c4b5fd', name: '--genre-shooter' },
+  sports: { light: '#d7f542', dark: '#b5d63a', name: '--genre-sports' },
+  racing: { light: '#ff6aa8', dark: '#ff9ac4', name: '--genre-racing' },
+  indie: { light: '#ffb224', dark: '#ffc75a', name: '--genre-indie' },
+  simulation: { light: '#a78bfa', dark: '#c4b5fd', name: '--genre-simulation' },
+  casual: { light: '#d7f542', dark: '#e6ff70', name: '--genre-puzzle' },
+  educational: { light: '#ffb224', dark: '#ffc75a', name: '--genre-sports' },
 };
 
 /**
@@ -24,12 +35,12 @@ export const genreColorMap = {
  * @returns {string} Cor em hex ou cor padrão
  */
 export function getGenreColor(genreName) {
-  if (!genreName) return "#7c3aed";
+  if (!genreName) return VOID_ARCADE.violet;
   const normalized = genreName.toLowerCase().trim();
   const match = Object.entries(genreColorMap).find(
     ([key]) => normalized.includes(key) || key.includes(normalized),
   );
-  return match ? match[1].light : "#7c3aed";
+  return match ? match[1].light : VOID_ARCADE.lime;
 }
 
 /**
@@ -38,10 +49,10 @@ export function getGenreColor(genreName) {
  * @returns {string} Variável CSS
  */
 export function getGenreColorVar(genreName) {
-  if (!genreName) return "var(--accent-purple)";
+  if (!genreName) return "var(--violet)";
   const normalized = genreName.toLowerCase().trim();
   const match = Object.entries(genreColorMap).find(
     ([key]) => normalized.includes(key) || key.includes(normalized),
   );
-  return match ? `var(${match[1].name})` : "var(--accent-purple)";
+  return match ? `var(${match[1].name})` : "var(--violet)";
 }

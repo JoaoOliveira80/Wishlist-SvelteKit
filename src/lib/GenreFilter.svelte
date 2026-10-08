@@ -79,19 +79,21 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 14px;
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-md);
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
     background: var(--surface-strong);
     color: var(--text);
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    font-weight: 700;
     cursor: pointer;
-    transition: all var(--duration-normal) var(--ease-in-out);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      background var(--duration-fast) var(--ease-out);
   }
 
   .filter-button:hover {
-    border-color: var(--border-accent);
+    border-color: rgba(215, 245, 66, 0.45);
     background: var(--surface-hover);
     color: var(--text-strong);
   }
@@ -115,9 +117,10 @@
     min-width: 20px;
     height: 20px;
     padding: 0 6px;
-    border-radius: var(--radius-sm);
-    background: var(--accent-bright);
-    color: #ffffff;
+    border-radius: var(--radius-pill);
+    background: var(--lime);
+    color: #101503;
+    font-family: var(--font-mono);
     font-size: 0.7rem;
     font-weight: 700;
   }
@@ -143,9 +146,9 @@
     max-height: min(360px, calc(100vh - 120px));
     overflow: auto;
     border-radius: var(--radius-lg);
-    background: var(--surface);
+    background: #0e1422;
     border: 1px solid var(--border-strong);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
     animation: scale-up var(--duration-normal) var(--ease-out);
   }
 
@@ -186,25 +189,28 @@
   .genre-tag {
     padding: 8px 12px;
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--text-muted);
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-in-out);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      background var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
   }
 
   .genre-tag:hover {
-    border-color: var(--genre-color);
-    color: var(--accent-bright);
-    background: rgba(102, 192, 244, 0.08);
+    border-color: rgba(215, 245, 66, 0.5);
+    color: var(--lime);
+    background: rgba(215, 245, 66, 0.08);
   }
 
   .genre-tag.selected {
-    border-color: var(--genre-color);
-    background: rgba(from var(--genre-color) r g b / 0.15);
-    color: var(--text-strong);
+    border-color: var(--lime);
+    background: var(--lime);
+    color: #101503;
   }
 
   @media (max-width: 640px) {
