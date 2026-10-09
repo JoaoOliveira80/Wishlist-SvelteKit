@@ -105,7 +105,12 @@
   .brand-mark {
     width: 40px; height: 40px; border-radius: 12px;
     display: grid; place-items: center; color: #0d1203;
-    background: var(--lime); transform: rotate(-4deg); flex-shrink: 0;
+    background: linear-gradient(
+      135deg,
+      var(--lime-soft),
+      var(--background) 60%,
+      #a8d61f
+    ); transform: rotate(-4deg); flex-shrink: 0;
     overflow: hidden; padding: 2px;
   }
   .brand-mark img { width: 100%; height: 100%; border-radius: 10px; display: block; }
